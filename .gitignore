@@ -1,0 +1,47 @@
+# Quartus temporary folders
+db/
+incremental_db/
+output_files/
+ip/
+*.qws
+*.sof
+*.pof
+*.jic
+*.pjt
+*.rpt
+*.cmp
+*.sld
+*.qip
+*.qpf
+*.summary
+*.map
+*.sta
+*.vqm
+*.stc
+
+# User-specific Quartus settings
+*.qsf
+*.qsf.backup
+*.qpf.backup
+
+# Backup and editor files
+*~
+*.bak
+*.swp
+*.log
+*.tmp
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Firmware folder: mantenere sorgenti, ignorare compilati e cache
+Firmware/**/*.o
+Firmware/**/*.exe
+Firmware/**/*.out
+Firmware/**/*.obj
+Firmware/**/*.elf
+Firmware/**/*.hex
+Firmware/**/*.pyc
+Firmware/**/__pycache__/
+Firmware/**/*.log

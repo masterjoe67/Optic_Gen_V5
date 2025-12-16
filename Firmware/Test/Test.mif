@@ -1,0 +1,31 @@
+WIDTH=16;
+DEPTH=4096;
+
+ADDRESS_RADIX=HEX;
+DATA_RADIX=HEX;
+
+CONTENT BEGIN
+    000 : C001;   -- rjmp to 0x0002
+    001 : 0000;
+
+    -- reset:
+    002 : E010;   -- ldi r16, 0x10
+    003 : BF0E;   -- out SPH, r16
+    004 : E0FF;   -- ldi r16, 0xFF
+    005 : BF0D;   -- out SPL, r16
+
+    006 : 940E;
+    007 : 000A;   -- call test_sub
+
+    008 : E255;   -- ldi r18, 0x55
+    009 : 9200;   -- sts 0x0100, r18
+    00A : 9001;   -- lds r19, 0x0100
+
+    00B : CFFF;   -- loop forever
+
+    -- test_sub
+    00C : 0000;   -- nop
+    00D : 9508;   -- ret
+
+    [00E..FFF] : 0000;
+END;

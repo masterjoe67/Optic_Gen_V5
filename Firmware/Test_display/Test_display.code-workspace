@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"stdio.h": "c",
+			"ili9341.h": "c",
+			"delay.h": "c",
+			"stdint.h": "c",
+			"ext_register.h": "c"
+		}
+	}
+}
