@@ -21,6 +21,7 @@ use WORK.MemAccessCompPack.all;
 entity top_avr_core_v8 is port(
 	nrst   : in    std_logic;
 	clk    : in    std_logic;
+	ck50   : in    std_logic;
 	-- Port 
 	porta  : inout std_logic_vector(7 downto 0);
 	portb  : inout std_logic_vector(7 downto 0);
@@ -42,19 +43,24 @@ entity top_avr_core_v8 is port(
 	TDO    : out   std_logic;
 	TRSTn  : in    std_logic; -- Optional JTAG input
 	
-	--EXT Reg
-	ext_reg0	: out    std_logic_vector(15 downto 0);
-	ext_reg1	: out    std_logic_vector(15 downto 0);
-	ext_reg2	: out    std_logic_vector(15 downto 0);
-	ext_reg3	: out    std_logic_vector(15 downto 0);
+--	--EXT Reg
+--	ext_reg0	: out    std_logic_vector(15 downto 0);
+--	ext_reg1	: out    std_logic_vector(15 downto 0);
+--	ext_reg2	: out    std_logic_vector(15 downto 0);
+--	ext_reg3	: out    std_logic_vector(15 downto 0);
 	
 	-- Debouncer
 	keys		: in    std_logic_vector(6 downto 0);
 	
 	--Encoder
 	enc_a		: in    std_logic;
-	enc_b		: in    std_logic
-				);
+	enc_b		: in    std_logic;
+	
+	--PWM generator
+	AH, AL,
+   BH, BL,
+   CH, CL    : out std_logic
+	);
 
 end top_avr_core_v8;
 
@@ -309,9 +315,6 @@ component spi_mod
 end component;
 
 
-
-	 
-	 
 begin
 
 
@@ -540,22 +543,46 @@ end generate;
 -- ************************************************
 
 -- External register
-EXT_reg_impl:entity work.mmio_regs_16bit_direct port map(
-	clk           => core_cp2,             -- clock del core
-	rst           => core_ireset,             -- reset sincrono
-	core_write    => core_iowe,
-	core_read     => core_iore,
-	core_addr     => core_adr,
-	core_data_in  => core_dbusout,
-	core_data_out => ext_reg_dbusout,
-	out_en		  => ext_reg_out_en,
-	ext_reg0      =>ext_reg0,
-	ext_reg1      =>ext_reg1,
-	ext_reg2      =>ext_reg2,
-	ext_reg3      =>ext_reg3
-	);
-	io_port_out(6) <= ext_reg_dbusout;
-	io_port_out_en(6) <= ext_reg_out_en;
+--EXT_reg_impl:entity work.mmio_regs_16bit_direct port map(
+--	clk           => core_cp2,             -- clock del core
+--	rst           => core_ireset,             -- reset sincrono
+--	core_write    => core_iowe,
+--	core_read     => core_iore,
+--	core_addr     => core_adr,
+--	core_data_in  => core_dbusout,
+--	core_data_out => ext_reg_dbusout,
+--	out_en		  => ext_reg_out_en,
+--	ext_reg0      =>ext_reg0,
+--	ext_reg1      =>ext_reg1,
+--	ext_reg2      =>ext_reg2,
+--	ext_reg3      =>ext_reg3
+--	);
+--	io_port_out(6) <= ext_reg_dbusout;
+--	io_port_out_en(6) <= ext_reg_out_en;
+PWM_impl:entity work.spwm_generator_mmio port map(
+        -- clock
+        clk_sys   => core_cp2,
+        clk_pwm   => ck50,
+        rst_n     => core_ireset,
+
+        -- MMIO
+        bus_addr  => core_adr,
+        bus_wr    => core_iowe,
+        bus_rd    => core_iore,
+        bus_wdata => core_dbusout,
+        bus_rdata => ext_reg_dbusout,
+        out_en    => ext_reg_out_en,
+
+        -- uscite
+        AH			=> AH,
+		  AL			=> AL,
+        BH			=> BH, 
+		  BL			=> BL,
+        CH			=> CH, 
+		  CL			=> CL
+    );
+io_port_out(6) <= ext_reg_dbusout;
+io_port_out_en(6) <= ext_reg_out_en;
 	
 -- Debouncer	
 	
@@ -586,7 +613,7 @@ io_port_out_en(8) <= debounch_reg_out_en;
 
 encoder:entity work.mmio_encoder port map(
     clk       => core_cp2,
-    reset     => core_ireset,
+    reset_n     => core_ireset,
 
     -- encoder signals
     enc_a     => enc_a,

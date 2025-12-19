@@ -10,9 +10,12 @@
 //  CONFIGURA PIN (modifica secondo collegamento hardware)
 // -------------------------------------------------------------
 #define DB_REG   (*(volatile uint8_t *)0x30)
-#define CLR_REG  (*(volatile uint8_t *)0x3D)
+#define CLR_REG  (*(volatile uint8_t *)0x28)
 #define MASK_REG  (*(volatile uint8_t *)0x32)
 #define EVT_REG   (*(volatile uint8_t *)0x31)
+
+#define ENC_VAL_L   (*(volatile uint8_t *)0x3c)
+#define ENC_VAL_H  (*(volatile uint8_t *)0x3D)
 
 
 void debounce_init(uint8_t mask);

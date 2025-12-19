@@ -28,22 +28,43 @@ component pport is generic(PPortNum : natural);
 			   pinx       : in  std_logic_vector(7 downto 0));
 end component;
 
-component mmio_regs_16bit_direct is port(
-        clk         : in  std_logic;
-        rst         : in  std_logic;
+--component mmio_regs_16bit_direct is port(
+--        clk         : in  std_logic;
+--        rst         : in  std_logic;
+--
+--        -- Bus AVR a 8 bit
+--        core_write  : in  std_logic;
+--        core_read        : in  std_logic;
+--        core_addr   : in  std_logic_vector(5 downto 0);
+--        core_data_in  : in  std_logic_vector(7 downto 0);
+--        core_data_out : out std_logic_vector(7 downto 0);
+--		  out_en     	 : out std_logic;
+--        -- Uscite dirette a 16 bit
+--        ext_reg0    : out std_logic_vector(15 downto 0);
+--        ext_reg1    : out std_logic_vector(15 downto 0);
+--        ext_reg2    : out std_logic_vector(15 downto 0);
+--        ext_reg3    : out std_logic_vector(15 downto 0)
+--    );
+--end component;
 
-        -- Bus AVR a 8 bit
-        core_write  : in  std_logic;
-        core_read        : in  std_logic;
-        core_addr   : in  std_logic_vector(5 downto 0);
-        core_data_in  : in  std_logic_vector(7 downto 0);
-        core_data_out : out std_logic_vector(7 downto 0);
-		  out_en     	 : out std_logic;
-        -- Uscite dirette a 16 bit
-        ext_reg0    : out std_logic_vector(15 downto 0);
-        ext_reg1    : out std_logic_vector(15 downto 0);
-        ext_reg2    : out std_logic_vector(15 downto 0);
-        ext_reg3    : out std_logic_vector(15 downto 0)
+component spwm_generator_mmio is port (
+        -- clock
+        clk_sys   : in  std_logic;   -- clock core AVR
+        clk_pwm   : in  std_logic;   -- 50 MHz
+        rst_n     : in  std_logic;
+
+        -- MMIO
+        bus_addr  : in  std_logic_vector(5 downto 0);
+        bus_wr    : in  std_logic;
+        bus_rd    : in  std_logic;
+        bus_wdata : in  std_logic_vector(7 downto 0);
+        bus_rdata : out std_logic_vector(7 downto 0);
+        out_en    : out std_logic;
+
+        -- uscite
+        AH, AL,
+        BH, BL,
+        CH, CL    : out std_logic
     );
 end component;
 

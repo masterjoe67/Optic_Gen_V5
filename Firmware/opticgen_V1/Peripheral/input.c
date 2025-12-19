@@ -22,5 +22,17 @@ void debounce_clear(uint8_t mask) {
 }
 
 int8_t encoder_get_delta(){
-    return 0;
+    static uint8_t prev = 0;
+    uint8_t cur = ENC_VAL_L;   // macro o funzione MMIO
+
+    int8_t delta = (int8_t)(cur - prev);
+
+    prev = cur;
+    return delta;
 }
+
+uint16_t encoder_read(void) {
+    uint16_t val = ((uint16_t)ENC_VAL_H << 8) | ENC_VAL_L;
+    return val;
+}
+

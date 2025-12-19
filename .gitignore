@@ -45,3 +45,7 @@ Firmware/**/*.hex
 Firmware/**/*.pyc
 Firmware/**/__pycache__/
 Firmware/**/*.log
+
+# Folders
+download/
+

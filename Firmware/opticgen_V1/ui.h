@@ -7,10 +7,9 @@
 void ui_init(void);
 void ui_splash(void);
 void ui_update(void); // call frequently from main loop
+uint32_t update_param_carrier(uint32_t param);
+uint16_t update_param_mod(uint16_t param);
+uint8_t update_param_dead(uint8_t param);
 
-// set/get values if needed
-uint32_t ui_get_carrier(void);
-uint32_t ui_get_modulation(void);
-uint32_t ui_get_deadtime(void);
 
 #endif
