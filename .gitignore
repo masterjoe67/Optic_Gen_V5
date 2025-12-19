@@ -2,25 +2,9 @@
 db/
 incremental_db/
 output_files/
-ip/
-*.qws
-*.sof
-*.pof
-*.jic
-*.pjt
-*.rpt
-*.cmp
-*.sld
-*.qip
-*.qpf
-*.summary
-*.map
-*.sta
-*.vqm
-*.stc
+
 
 # User-specific Quartus settings
-*.qsf
 *.qsf.backup
 *.qpf.backup
 
