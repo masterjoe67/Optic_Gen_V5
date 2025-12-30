@@ -1,6 +1,6 @@
 #include "pwm_iface.h"
 #include <avr/io.h>   // o quello che usi tu
-
+#include <util/delay.h>
 
 
 // ==========================================================================
@@ -23,66 +23,6 @@ uint32_t read32(volatile uint16_t *lo, volatile uint16_t *hi)
 //  FUNZIONI API
 // ==========================================================================
 
-// =====================================================
-// Scrittura carrier 32bit
-// =====================================================
-void pwm_set_carrier(uint32_t value)
-{
-
-    CARRIER_0 = (uint8_t)(value & 0xFF);
-    CARRIER_1 = (uint8_t)((value>>8) & 0xFF);
-    CARRIER_2 = (uint8_t)((value>>16) & 0xFF);
-    CARRIER_3 = (uint8_t)((value>>24) & 0xFF);
-
-}
-
-// Lettura carrier 32bit
-uint32_t pwm_get_carrier(void)
-{
-    uint32_t val = 0;
-    val |= CARRIER_0;
-    val |= ((uint32_t)CARRIER_1) << 8;
-    val |= ((uint32_t)CARRIER_2) << 16;
-    val |= ((uint32_t)CARRIER_3) << 24;
-    return val;
-}
-
-// =====================================================
-// Scrittura modulazione 16bit
-// =====================================================
-void pwm_set_mod(uint16_t value)
-{
-    MOD_0 = (uint8_t)(value & 0xFF);
-    MOD_1 = (uint8_t)((value>>8) & 0xFF);
-    /*uart_print("MOD_0= ");
-    uart_print_hex(MOD_0);
-    uart_print("\r\n");
-    uart_print("MOD_1= ");
-    uart_print_hex(MOD_1);
-	uart_print("\r\n");*/
-}
-
-// Lettura modulazione 16bit
-uint16_t pwm_get_mod(void)
-{
-    uint16_t val = 0;
-    val |= MOD_0;
-    val |= ((uint16_t)MOD_1) << 8;
-    return val;
-}
-
-// =====================================================
-// Deadtime 8bit
-// =====================================================
-void pwm_set_deadtime(uint8_t value)
-{
-    DEADTIME = value;
-}
-
-uint8_t pwm_get_deadtime(void)
-{
-    return DEADTIME;
-}
 
 // =====================================================
 // Controllo abilitazione
@@ -94,7 +34,7 @@ void pwm_enable(bool en)
 
 bool pwm_is_enabled(void)
 {
-    return (STATUS & 0x01) != 0;
+    return (CTRL & 0x01) != 0;
 }
 
 // =====================================================
@@ -117,13 +57,10 @@ uint8_t pwm_get_mode(void)
 // =====================================
 void pwm_set_carrier_hz(uint32_t hz)
 {
-    if(hz == 0) hz = 1; // evita divisione per zero
-
-    // calcolo registro divider
-    uint32_t reg = (PWM_F_CLK / hz);
-    if(reg > 0) reg -= 1;
-
-    pwm_set_carrier(reg);
+    //uint32_t inc_car = round(hz * 4294967296.0 / 50000000.0);
+    //uint32_t inc_car = hz * 2^32 / 100000000;
+    //write_reg32(0, inc_car);
+    write_reg32(0, hz / 2);
 }
 
 // =====================================
@@ -131,9 +68,12 @@ void pwm_set_carrier_hz(uint32_t hz)
 // =====================================
 uint32_t pwm_get_carrier_hz(void)
 {
-    uint32_t reg = pwm_get_carrier();
+    /*uint32_t reg = pwm_get_carrier();
     if(reg == 0) reg = 1; // evita divisione per zero
-    return PWM_F_CLK / (reg + 1);
+    return PWM_F_CLK / (reg + 1);*/
+    //uint32_t value = read_reg32(0);
+    //return (uint32_t)((uint64_t)value * 50000000 / 4294967296);
+    return read_reg32(0) * 2;
 }
 
 // =====================================
@@ -141,46 +81,107 @@ uint32_t pwm_get_carrier_hz(void)
 // =====================================
 void pwm_set_mod_hz(uint16_t hz)
 {
-    if(hz < 1) hz = 1;
-
-    uint16_t tmp = PWM_F_CLK / (MOD_LUT_SIZE * (uint16_t)hz);
-
-    if(tmp == 0)
-        tmp = 1;
-
-    tmp -= 1;
-
-    if(tmp > MOD_MAX)
-        tmp = MOD_MAX;
-
-    pwm_set_mod((uint16_t)tmp);
+    //uint32_t inc_mod = round(hz * 4294967296.0 / 50000000.0);
+   // uint32_t inc_mod = hz * 2^32 / 100000000;
+    write_reg32(1, hz / 2);
 }
 
 // =====================================
 // Legge frequenza modulazione in Hz
 // =====================================
-uint16_t pwm_get_mod_hz(void)
+uint32_t pwm_get_mod_hz(void)
 {
-    uint16_t mod = pwm_get_mod();
-    return (uint16_t)(PWM_F_CLK / (MOD_LUT_SIZE * (uint32_t)(mod + 1)));
+    //uint16_t mod = pwm_get_mod();
+    //return (uint16_t)(PWM_F_CLK / (MOD_LUT_SIZE * (uint32_t)(mod + 1)));
+    //uint32_t value = read_reg32(1);
+    //return (uint32_t)((uint64_t)value * 50000000 / 4294967296);
+    return read_reg32(1) * 2;
 }
 
 // =====================================
 // Imposta deadtime in nanosecondi
 // =====================================
-void pwm_set_deadtime_ns(uint32_t ns)
+void pwm_set_deadtime_ns(uint16_t ns)
 {
-    // converte ns in step di clock
-    uint8_t dt = (uint8_t)((ns + (CLK_PERIOD_NS-1)) / CLK_PERIOD_NS); // round up
-    if(dt > 31) dt = 31; // max valore 5 bit
-    pwm_set_deadtime(dt);
+    float tick = 1 / PWM_F_CLK;
+    uint16_t dt_cycles = ns / tick;
+    //uint16_t dt_cycles = round( ns / 20 );
+    write_reg16(2, ns * 5);
 }
 
 // =====================================
 // Legge deadtime in nanosecondi
 // =====================================
-uint32_t pwm_get_deadtime_ns(void)
+uint16_t pwm_get_deadtime_ns(void)
 {
-    uint8_t dt = pwm_get_deadtime();
-    return dt * CLK_PERIOD_NS;
+    //uint16_t dt = read_reg16();
+    //return dt * 20;
+    return read_reg16(2) / 5;
+}
+
+long map_long(long x, long in_min, long in_max, long out_min, long out_max)
+{
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min)
+           + out_min;
+}
+
+// =====================================
+// Imposta magnitude in %
+// =====================================
+void pwm_set_magnitude(uint8_t v)
+{
+    uint16_t val = map_long(v, 0, 100, 0, 1023);
+    write_reg16(3, val);
+ 
+}
+
+// =====================================
+// Legge magnitude in %
+// =====================================
+uint16_t pwm_get_magnitude(void)
+{
+
+    return map_long(read_reg16(3), 0, 1023, 0, 100);
+}
+
+void write_reg32(uint8_t commit_sel, uint32_t value)
+{
+    MMIO_B0 = (value >> 0)  & 0xFF;
+    MMIO_B1 = (value >> 8)  & 0xFF;
+    MMIO_B2 = (value >> 16) & 0xFF;
+    MMIO_B3 = (value >> 24) & 0xFF;
+    _delay_ms(100);
+    MMIO_COMMIT = commit_sel;
+}
+
+uint32_t read_reg32(uint8_t sel)
+{
+    MMIO_RSEL = sel;
+    _delay_ms(100);
+    uint32_t v = 0;
+    v |= (uint32_t)MMIO_B0 << 0;
+    v |= (uint32_t)MMIO_B1 << 8;
+    v |= (uint32_t)MMIO_B2 << 16;
+    v |= (uint32_t)MMIO_B3 << 24;
+
+    return v;
+}
+
+void write_reg16(uint8_t commit_sel, uint32_t value)
+{
+MMIO_B0 = value & 0xFF;
+MMIO_B1 = (value >> 8) & 0xFF;
+_delay_ms(100);
+MMIO_COMMIT = commit_sel;
+}
+
+uint16_t read_reg16(uint8_t sel)
+{
+    MMIO_RSEL = sel;
+    _delay_ms(100);
+    uint16_t v = 0;
+    v |= (uint32_t)MMIO_B0 << 0;
+    v |= (uint32_t)MMIO_B1 << 8;
+
+    return v;
 }

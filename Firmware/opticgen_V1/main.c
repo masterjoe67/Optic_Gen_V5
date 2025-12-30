@@ -9,7 +9,7 @@
 #include "Peripheral/leds.h"
 #include "Peripheral/pwm_iface.h"
 #include "ui.h"
-
+#include "Peripheral/XPT2046.h"
 
 // ------------------------------------------------
 // Main
@@ -34,11 +34,16 @@ int main(void) {
     setTextColor(ILI9341_WHITE,ILI9341_BLACK);
 
     // apply initial PWM settings
-    pwm_set_mode(MODE_3PHASE);
+    //pwm_set_mode(MODE_3PHASE);
+
     pwm_set_carrier_hz(20000);
     pwm_set_mod_hz(50);
     pwm_set_deadtime_ns(20);
+    pwm_set_magnitude(50);
     pwm_enable(false);
+//while(1);
+    xpt2046_init();
+    //ts_calibrate(X_SIZE, Y_SIZE);
 
     ui_splash();
     
@@ -47,12 +52,34 @@ int main(void) {
 
     uart_print("FINE.\r\n");
 
-
+uint16_t x, y;
     while(1) {
         ui_update();
-        // small delay to avoid busy spin
-        _delay_ms(5);
-    }
 
+        /*if (XPT2046_TouchPressed()) {
+            //uart_print("dio can");
+           XPT2046_TouchGetCoordinates(&x, &y);
+		
+
+            uart_print("X= ");
+            uart_print_hex16(x);
+            uart_print("\r\n");
+
+            uart_print("y= ");
+            uart_print_hex16(y);
+            uart_print("\r\n");
+
+            if (x > 0 && x<320 && y>0 && y < 240)
+			{
+                fillRect(x, y, 2, 2, ILI9341_RED);
+            }
+
+
+        }*/
+        // small delay to avoid busy spin
+        _delay_ms(15);
+    
+    
+    }
     return 0;
 }

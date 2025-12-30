@@ -11,9 +11,11 @@
 // 1) Generatore sinusoide singola da ROM 2048x10
 // =============================================================
 module spwm_single (
-    input  wire       clk_sin,
-    input  wire       rst_n,
-    output reg  [9:0] sinX
+    input  wire        clk_sin,
+	 input  wire        clk,
+    input  wire        rst_n,
+	 input  wire [9:0]  magnitude,   // 0..1023
+    output reg  [9:0]  sinX
 );
 
     parameter N = 2048;
@@ -25,17 +27,34 @@ module spwm_single (
         // Carica la LUT (file da mettere nella directory di simulazione/sintesi)
         $readmemh("sin_lut_2048.hex", sin_rom);
     end
+	 
+	 wire [9:0] romX = sin_rom[addr];
+	 // moltiplicazione 10x10 → 20 bit
+    wire [19:0] mulX = romX * magnitude;
 
-    always @(posedge clk_sin or negedge rst_n) begin
-        if (!rst_n)
-            addr <= 0;
-        else
-            addr <= (addr == N-1) ? 0 : addr + 1;
-    end
+//    always @(posedge clk_sin or negedge rst_n) begin
+//        if (!rst_n)
+//            addr <= 0;
+//        else
+//            addr <= (addr == N-1) ? 0 : addr + 1;
+//    end
 
-    always @(posedge clk_sin) begin
-        sinX <= sin_rom[addr];
+always @(posedge clk or negedge rst_n) begin
+    if(!rst_n)
+        addr <= 0;
+    else if(clk_sin)
+        addr <= (addr == N-1) ? 0 : addr + 1;
+end
+
+//    always @(posedge clk_sin) begin
+//        sinX <= sin_rom[addr];
+//    end
+always @(posedge clk) begin
+    if(clk_sin) begin
+        sinX <= mulX[19:10];
+
     end
+end
 
 endmodule
 
@@ -132,14 +151,17 @@ endmodule
 // =============================================================
 // 4) TOP MODULE COMPLETO SPWM MONOFASE
 // =============================================================
-module top_spwm_single (
-    input  wire        clk,          // 50 MHz
-    input  wire        rst_n,
+module top_spwm_single #(
+    parameter CLK_FREQ = 200_000_000
+)( 
+    input  wire         clk,          // 200 MHz
+    input  wire         rst_n,
 
-    input  wire [15:0] freq_carrier_div,
-    input  wire [15:0] freq_mod_div,
-    input  wire [4:0]  deadtime,
-    input  wire        mode,         // 0 = Mezzo ponte, 1 = Ponte intero
+    input  wire [31:0]  PWM_FREQ_REG,     // es. 20000
+    input  wire [31:0]  FREQ_CTR_REG,     //  divisore sinusoide
+    input  wire [15:0]  DEADTIME_REG,
+	 input  wire [9:0] 	MAGNITUDE_REG,
+    input  wire         mode,         // 0 = Mezzo ponte, 1 = Ponte intero
 
     output wire H, L,
     output wire H1, L1,
@@ -150,18 +172,32 @@ module top_spwm_single (
     wire ce_carrier;
     wire ce_mod;
 
-    clk_divider_ce #(.WIDTH(16)) DIV_CAR (
-        .clk(clk),
-        .rst_n(rst_n),
-        .divider(freq_carrier_div),
-        .ce(ce_carrier)
-    );
+    // =========================
+    //  PWM carrier
+    // =========================
+    wire [11:0] carrier;
+    wire tick;
 
-    clk_divider_ce #(.WIDTH(16)) DIV_MOD (
+    pwm_freq_gen #(
+        .CLK_FREQ_HZ(CLK_FREQ),
+        .PWM_BITS(10)
+    ) PWMGEN (
         .clk(clk),
         .rst_n(rst_n),
-        .divider(freq_mod_div),
-        .ce(ce_mod)
+        .pwm_freq_hz(PWM_FREQ_REG),
+        .pwm_cnt(carrier),
+        .tick_o(ce_carrier)
+    );
+	 
+	 mod_freq_gen #(
+        .CLK_FREQ_HZ(CLK_FREQ),
+        .MOD_BITS(11)
+    ) MODGEN (
+        .clk(clk),
+        .rst_n(rst_n),
+        .mod_freq_hz(FREQ_CTR_REG),
+        .mod_cnt(carrier),
+        .tick_o(ce_mod)
     );
 
     // Sinusoide
@@ -169,7 +205,9 @@ module top_spwm_single (
 
     spwm_single SIN_GEN (
         .clk_sin(ce_mod),
+		  .clk(clk),
         .rst_n(rst_n),
+		  .magnitude(MAGNITUDE_REG),
         .sinX(sinX)
     );
 

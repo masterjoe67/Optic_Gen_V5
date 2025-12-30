@@ -8,3 +8,5 @@
   void uart_putc(char c);
   void uart_print_hex16(uint16_t v);
   void uart_print_hex(uint8_t v);
+  void uart_print_int16(int16_t v);
+  

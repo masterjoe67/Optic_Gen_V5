@@ -35,6 +35,7 @@ entity top_avr_core_v8 is port(
 	sck    : out   std_logic;
 	-- External interrupts
 	INTx   : in    std_logic_vector(7 downto 0); 
+	INT0	 : in    std_logic;
 
 	-- JTAG related signals
 	TMS    : in    std_logic;
@@ -334,6 +335,17 @@ clk4M <= clk;
 
 core_inst <= pm_dout;	
 
+--core_irqlines(0) <= not INT0;
+
+touch_int_impl : component touch_irq_fpga
+    Port map(
+        clk          => core_cp2,      -- clock FPGA
+        rst_n        => core_ireset,   -- reset attivo basso
+        penirq_in    => not INT0,          -- pin fisico PENIRQ (attivo basso)
+        int0_out     => core_irqlines(0)   -- output per core
+    );
+
+
 
 SPI_inst : component spi_mod
   port map (
@@ -604,9 +616,9 @@ Debouncer:entity work.btn_debounce_mmio
         bus_write  => core_iowe,
         bus_wdata  => core_dbusout,
         bus_rdata  => debounch_reg_dbusout,
-        out_en  => debounch_reg_out_en,
+        out_en  => debounch_reg_out_en
 
-        irq        => core_irqlines(0)
+        --irq        => core_irqlines(1)
     );
 io_port_out(8) <= debounch_reg_dbusout;
 io_port_out_en(8) <= debounch_reg_out_en;

@@ -72,7 +72,10 @@ typedef struct {
 } rle16_t;
 
 
-
+typedef struct {
+    uint8_t count;
+    uint8_t color;   // 0 = nero, 1 = bianco
+} rle_bw_t;
 typedef uint8_t byte;
 int16_t  cursor_x, cursor_y, win_xe, win_ye, padX;
 uint8_t  textfont,
@@ -83,6 +86,8 @@ uint8_t  textfont,
 uint16_t textcolor, textbgcolor, fontsloaded, addr_row, addr_col;
 //bool  textwrap; // If set, 'wrap' text at right edge of display
 
+extern unsigned int X_SIZE;
+extern unsigned int Y_SIZE;
 
 void spi_init(void);
 void ILI9341_Init();
@@ -131,5 +136,6 @@ uint8_t u32_to_decstr(uint32_t v, char *buf);
 
 //void ILI9341_draw_rle(const struct {uint8_t count; uint16_t color;} *rle, uint16_t x0, uint16_t y0, uint16_t width);
 void ILI9341_draw_rle(const rle16_t *rle, uint16_t x0, uint16_t y0, uint16_t width);
+void draw_rle_bw(uint16_t x0, uint16_t y0, uint16_t width, uint16_t height, const rle_bw_t *rle);
 
 #endif

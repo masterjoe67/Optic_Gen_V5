@@ -127,16 +127,17 @@ constant PINC_Address  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16
 --constant PINF_Address  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#00#);
 
 -- PWM_Reg
-constant CARRIER_0  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#00#);
-constant CARRIER_1  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#01#);
-constant CARRIER_2  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#02#);
-constant CARRIER_3  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#03#);
-constant MOD_0  	  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#04#);
-constant MOD_1      : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#05#);
-constant DEADTIME   : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#06#);
-constant CTRL       : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#07#);
-constant MODE       : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#1e#);
-constant STATUS     : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#1f#);
+constant BUF_0  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#00#);
+constant BUF_1  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#01#);
+constant BUF_2  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#02#);
+constant BUF_3  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#03#);
+constant COMMIT  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#04#);
+constant RSEL  	  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#05#);
+--constant RD_IDX      : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#05#);
+--constant DEADTIME   : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#06#);
+constant CTRL       : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#06#);
+constant MODE       : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#07#);
+--constant STATUS     : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#07#);
 
 -- Debounce_Reg
 constant OFF_DB  		: std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#10#);

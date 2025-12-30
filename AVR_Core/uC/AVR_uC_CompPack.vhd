@@ -28,6 +28,15 @@ component pport is generic(PPortNum : natural);
 			   pinx       : in  std_logic_vector(7 downto 0));
 end component;
 
+component touch_irq_fpga is
+    Port (
+        clk          : in  std_logic;  -- clock FPGA
+        rst_n        : in  std_logic;  -- reset attivo basso
+        penirq_in    : in  std_logic;  -- pin fisico PENIRQ (attivo basso)
+        int0_out     : out std_logic   -- output per core
+    );
+end component;
+
 --component mmio_regs_16bit_direct is port(
 --        clk         : in  std_logic;
 --        rst         : in  std_logic;

@@ -15,9 +15,11 @@ SRCS = main.c \
 	   Peripheral/uart.c\
 	   Peripheral/leds.c\
 	   Peripheral/input.c\
+	   Peripheral/XPT2046.c\
+	   Peripheral/pwm_iface.c\
 	   ui.c\
-	   glcdfont.c\
-	   Peripheral/pwm_iface.c
+	   glcdfont.c
+	   
 
 
 # converte .c → .o

@@ -1,90 +1,84 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <util/delay.h>
-#include "ili9341.h"
+#include <avr/interrupt.h>
 //#include "glcdfont.h"
 #include "uart.h"
+#include <avr/io.h>
 
-#include "pwm_iface.h"
-#include "input.h"
 
-// ==========================================
-// helper per stampare valori su UART
-// ==========================================
-static void uart_print_carrier(uint32_t hz)
+/* ================= IRQ DEBUG ================= */
+
+volatile uint8_t irq_id = 0xFF;
+
+/* ---- External interrupts INT0–INT7 ---- */
+ISR(INT0_vect) { irq_id = 0x00; }
+ISR(INT1_vect) { irq_id = 0x01; }
+ISR(INT2_vect) { irq_id = 0x02; }
+ISR(INT3_vect) { irq_id = 0x03; }
+ISR(INT4_vect) { irq_id = 0x04; }
+ISR(INT5_vect) { irq_id = 0x05; }
+ISR(INT6_vect) { irq_id = 0x06; }
+ISR(INT7_vect) { irq_id = 0x07; }
+
+/* ---- Timers ---- */
+ISR(TIMER0_OVF_vect) { irq_id = 0x10; }
+ISR(TIMER1_OVF_vect) { irq_id = 0x11; }
+ISR(TIMER2_OVF_vect) { irq_id = 0x12; }
+ISR(TIMER3_OVF_vect) { irq_id = 0x13; }
+
+/* ---- UART / ADC ---- */
+ISR(USART0_RX_vect) { irq_id = 0x20; }
+ISR(ADC_vect)       { irq_id = 0x21; }
+
+/* ---- Catch-all ---- */
+ISR(BADISR_vect)    { irq_id = 0xEE; }
+
+
+
+void uart_puts(const char *s)
 {
-    uart_print("Carrier: ");
-    if(hz > 0xFFFF)
-    {
-        uart_print_hex16((uint16_t)(hz >> 16));
-        uart_print_hex16((uint16_t)(hz & 0xFFFF));
-    }
-    else
-        uart_print_hex16((uint16_t)hz);
-    uart_print("\r\n");
+    while (*s)
+        uart_putc(*s++);
 }
 
-static void uart_print_mod(uint32_t hz)
+void uart_puthex(uint8_t v)
 {
-    uart_print("Modulation: ");
-    uart_print_hex16((uint16_t)hz);
-    uart_print("\r\n");
+    const char hex[] = "0123456789ABCDEF";
+    uart_putc(hex[v >> 4]);
+    uart_putc(hex[v & 0x0F]);
 }
 
-static void uart_print_dead(uint32_t ns)
-{
-    uart_print("Deadtime: ");
-    uart_print_hex16((uint16_t)ns);
-    uart_print("\r\n");
-}
-
-
+/* ================= MAIN ================= */
 
 int main(void)
 {
-    // inizializza PWM disattivato
-    pwm_enable(false);
-	uart_init(19200);
-    uart_print("\r\nBoot AVR + ILI9341\r\n");
+    uart_init(19200);
 
-    // valori iniziali
-    uint32_t carrier_hz = 20000;   // 20 kHz
-    uint32_t mod_hz     = 110;   // 10 kHz
-    uint32_t dead_ns    = 200;     // 200 ns
+    uart_puts("\r\n=== ATmega128 IRQ TEST ===\r\n");
 
-    pwm_set_carrier_hz(carrier_hz);
-    //pwm_set_mod_hz(mod_hz);
-    pwm_set_deadtime_ns(dead_ns);
-	pwm_set_mod_hz(mod_hz);
-    pwm_enable(false);
+    /* 🔒 DISABILITA TUTTO */
+    EIMSK  = 0;
+    TIMSK  = 0;
+    ETIMSK = 0;
+    UCSR0B &= ~(1 << RXCIE0);
+    ADCSRA &= ~(1 << ADIE);
 
-    uart_print("Modulation Test start\r\n");
-    uart_print_mod(pwm_get_mod());
+    /* 🧪 ABILITA SOLO UN IRQ PER VOLTA */
+    EICRA = (1 << ISC01);   // INT0 falling edge
+    EICRB = 0;
+    EIMSK = (1 << INT0);    // INT0 ON
 
-    while(1)
-    {
-        int8_t delta = encoder_get_delta();
+    sei();
 
-        if(delta != 0)
-        {
-            // l'encoder varia la frequenza di modulazione
-            if(delta > 0) mod_hz += 1;  // step 100 Hz
-            else           mod_hz -= 1;
+    while (1) {
+        if (irq_id != 0xFF) {
 
-            // limiti min/max
-            if(mod_hz < 1)  mod_hz = 1;
-            if(mod_hz > 500) mod_hz = 500;
+            uart_puts("IRQ: 0x");
+            uart_puthex(irq_id);
+            uart_puts("\r\n");
 
-            pwm_set_mod_hz(mod_hz);
-
-			uart_print("MOD_0= ");
-			uart_print_hex16(pwm_get_mod());
-			uart_print("\r\n");
-
-			
-            uart_print_mod(pwm_get_mod_hz());
+            irq_id = 0xFF;
         }
     }
-
-    return 0;
 }

@@ -48,6 +48,25 @@ void uart_print_hex16(uint16_t v)
     uart_putc(hex[v & 0x0F]);          // nibble basso del byte basso
 }
 
+void uart_print_int16(int16_t v)
+{
+    char buf[7];      // -32768\0
+    uint8_t i = 0;
+
+    if (v < 0) {
+        uart_putc('-');
+        v = -v;
+    }
+
+    do {
+        buf[i++] = '0' + (v % 10);
+        v /= 10;
+    } while (v);
+
+    while (i--)
+        uart_putc(buf[i]);
+}
+
 
 
 void uart_print_hex(uint8_t v)

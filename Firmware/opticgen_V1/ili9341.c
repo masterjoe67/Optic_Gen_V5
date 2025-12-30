@@ -156,17 +156,16 @@ void ILI9341_Reset(void) {
 
 void ILI9341_Send_Burst(uint16_t color, uint32_t repetitions)
 {
-    uint8_t hi = color >> 8;
+    /*uint8_t hi = color >> 8;
     uint8_t lo = color & 0xFF;
 
     DC_DATA();   // dati
-    CS_LOW();    // seleziona display
+    CS_LOW();    // seleziona display*/
 
     // Invio ripetuto: ottimizzato
     while (repetitions--)
     {
-        spi_write(hi);
-        spi_write(lo);
+        spi_send16(color);
     }
 
     CS_HIGH();
@@ -388,8 +387,6 @@ void ILI9341_Set_Rotation(unsigned char rotation) {
 		Y_SIZE = 320;
 		break;
 	case 3:
-		
-		
 		ILI9341_Send_Data(0xE8);
 		X_SIZE = 320;
 		Y_SIZE = 240;
@@ -1528,6 +1525,48 @@ void ILI9341_draw_rle(const  rle16_t *rle, uint16_t x0, uint16_t y0, uint16_t wi
             }
         }
         p++;
+    }
+}
+
+
+
+void draw_rle_bw(uint16_t x0, uint16_t y0, uint16_t width, uint16_t height, const rle_bw_t *rle)
+{
+    uint16_t x = 0;
+    uint16_t y = 0;
+
+    while (1) {
+        uint8_t run = pgm_read_byte(&rle->count);
+        uint8_t bw  = pgm_read_byte(&rle->color);
+        rle++;
+
+        if (run == 0)
+            break;
+
+        uint16_t color = bw ? ILI9341_WHITE : ILI9341_BLACK;
+
+        while (run) {
+            uint16_t space = width - x;
+            uint16_t chunk = (run < space) ? run : space;
+
+            uint16_t x1 = x0 + x;
+            uint16_t y1 = y0 + y;
+            uint16_t x2 = x1 + chunk - 1;
+            uint16_t y2 = y1;
+
+            ILI9341_Set_Address(x1, y1, x2, y2);
+            ILI9341_Send_Burst(color, chunk);
+
+            run -= chunk;
+            x += chunk;
+
+            if (x >= width) {
+                x = 0;
+                y++;
+                if (y >= height)
+                    return;
+            }
+        }
     }
 }
 

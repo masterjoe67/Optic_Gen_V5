@@ -1,3 +1,4 @@
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -27,129 +28,238 @@ end entity;
 architecture rtl of spwm_generator_mmio is
 
     ----------------------------------------------------------------
-    -- MMIO offsets
-    ----------------------------------------------------------------
---    constant CARRIER_0 : std_logic_vector(5 downto 0) := "000000";
---    constant CARRIER_1 : std_logic_vector(5 downto 0) := "000001";
---    constant CARRIER_2 : std_logic_vector(5 downto 0) := "000010";
---    constant CARRIER_3 : std_logic_vector(5 downto 0) := "000011";
---    constant MOD_0     : std_logic_vector(5 downto 0) := "000100";
---    constant MOD_1     : std_logic_vector(5 downto 0) := "000101";
---    constant DEADTIME  : std_logic_vector(5 downto 0) := "000110";
---    constant CTRL      : std_logic_vector(5 downto 0) := "000111";
---    constant MODE      : std_logic_vector(5 downto 0) := "001000";
---    constant STATUS    : std_logic_vector(5 downto 0) := "001001";
-
-    ----------------------------------------------------------------
     -- MMIO registers (sul clock sys)
     ----------------------------------------------------------------
-    signal reg_carrier  : unsigned(31 downto 0) := (others=>'0');
-    signal reg_mod      : unsigned(15 downto 0) := (others=>'0');
-    signal reg_deadtime : unsigned(7 downto 0)  := (others=>'0');
-    signal reg_ctrl     : std_logic := '0';
-    signal reg_mode     : unsigned(1 downto 0) := "00";
 
-    ----------------------------------------------------------------
-    -- SPWM LUT
-    ----------------------------------------------------------------
-    constant N       : integer := 2048;
-    constant OFF120  : integer := N/3;
-    constant OFF240  : integer := 2*N/3;
+	 signal sel_wr  : unsigned(1 downto 0) := (others=>'0');
+    signal idx_wr  : unsigned(1 downto 0) := (others=>'0');
 
-    signal addrA, addrB, addrC : integer range 0 to N-1 := 0;
-    signal sinA_reg, sinB_reg, sinC_reg : unsigned(9 downto 0);
-    signal sinA_out, sinB_out, sinC_out : std_logic_vector(9 downto 0);
-    signal sinA_scaled, sinB_scaled, sinC_scaled : unsigned(9 downto 0);
+    signal tmp32   : unsigned(31 downto 0) := (others=>'0');
+    signal tmp16   : unsigned(15 downto 0) := (others=>'0');
 
-    ----------------------------------------------------------------
-    -- PWM carrier
-    ----------------------------------------------------------------
-    signal carrier   : unsigned(9 downto 0) := (others=>'0');
-    signal pwmA, pwmB, pwmC     : std_logic;
-    signal pwmA_i, pwmB_i, pwmC_i : std_logic;
+    signal reg_carrier 		 : std_logic_vector(31 downto 0) := (others=>'0');
+    signal reg_mod     		 : std_logic_vector(31 downto 0) := (others=>'0');
+    signal reg_dead    		 : std_logic_vector(15 downto 0) := (others=>'0');
+	 signal reg_magnitude    : std_logic_vector(9 downto 0) := (others=>'0');
 
-    ----------------------------------------------------------------
-    -- Deadtime
-    ----------------------------------------------------------------
-    signal dtA, dtB, dtC : unsigned(7 downto 0);
-    signal stA, stB, stC : std_logic;
-	 signal init_done : std_logic := '0';
+    signal sel_rd  : unsigned(1 downto 0) := (others=>'0');
+    signal idx_rd  : unsigned(1 downto 0) := (others=>'0');
 
-    ----------------------------------------------------------------
-    -- sincronizzazione MMIO su clk_pwm
-    ----------------------------------------------------------------
-    signal car_s2, mod_s2 : unsigned(31 downto 0);
-    signal dt_s2          : unsigned(7 downto 0);
-    signal en_s2          : std_logic;
-    signal mode_s2        : unsigned(1 downto 0);
+    signal rdata_i : std_logic_vector(7 downto 0) := (others=>'0');
 	 
+	 
+    signal reg_ctrl     : std_logic := '0';
+    signal reg_mode     : unsigned(1 downto 0) := "00";  -- MODE 0 = 1phase half bridge, 1 = 1phase full bridge, 2 3phase
 
+    signal module_sel   : std_logic;
+	 
+	 signal buf_car  : unsigned(31 downto 0);
+	 signal buf_mod  : unsigned(31 downto 0);
+	 signal buf_dead : unsigned(15 downto 0);
+	 
+	 signal buf32  	: unsigned(31 downto 0);
+	 signal rd_buf32  : unsigned(31 downto 0);
+
+    signal en_s2          : std_logic;
+	 
+	 signal H   : std_logic;
+	 signal L   : std_logic;
+	 signal H1   : std_logic;
+	 signal L1   : std_logic;
+	 signal H2   : std_logic;
+	 signal L2   : std_logic;
+	 
+	 signal tri_H_A   : std_logic;
+	 signal tri_L_A   : std_logic;
+	 signal tri_H_B   : std_logic;
+	 signal tri_L_B   : std_logic;
+	 signal tri_H_C   : std_logic;
+	 signal tri_L_C   : std_logic;
+
+
+component top_spwm_dynamic port(
+    clk				: in  std_logic;              -- 200 MHz
+    rst_n			: in  std_logic;
+	 
+	 PWM_FREQ_REG  : in  std_logic_vector(31 downto 0);   -- Hz
+	 FREQ_CTR_REG  : in  std_logic_vector(31 downto 0);   -- DDS divisore sinusoide
+	 deadtime_reg  : in  std_logic_vector(15 downto 0);  -- tick di pwm_clk
+	 MAGNITUDE_REG	: in  std_logic_vector(9 downto 0);
+
+-- ===== uscite full bridge =====
+    AH : out std_logic;
+    AL : out std_logic;
+    BH : out std_logic;
+    BL : out std_logic;
+    CH : out std_logic;
+    CL : out std_logic
+);
+end component;
+
+component top_spwm_single port( 
+    clk				: in  std_logic;              -- 200 MHz
+    rst_n			: in  std_logic;
+	 
+	 PWM_FREQ_REG  : in  std_logic_vector(31 downto 0);   -- Hz
+	 FREQ_CTR_REG  : in  std_logic_vector(31 downto 0);   -- DDS divisore sinusoide
+	 deadtime_reg  : in  std_logic_vector(15 downto 0);  	-- tick di pwm_clk
+	 MAGNITUDE_REG	: in  std_logic_vector(9 downto 0);
+    mode 			: in  std_logic;         					-- 0 = Mezzo ponte, 1 = Ponte intero
+
+	 -- ===== uscite  =====
+    H : out std_logic;
+    L : out std_logic;
+    H1 : out std_logic;
+    L1 : out std_logic;
+    H2 : out std_logic;
+    L2 : out std_logic
+
+);
+end component;
+
+component top_spwm_selector port (
+    clk				: in  std_logic;              -- 200 MHz
+    rst_n			: in  std_logic;
+    mode_sel 		: in  std_logic_vector(1 downto 0);
+    out_en 			: in  std_logic;
+    -- MONOFASE
+    mono_H : in  std_logic;
+    mono_L : in  std_logic;
+    mono_H1 : in  std_logic;
+    mono_L1 : in  std_logic;
+    mono_H2 : in  std_logic;
+    mono_L2 : in  std_logic;
+
+    -- TRIFASE
+    tri_H_A : in  std_logic;
+    tri_L_A : in  std_logic;
+    tri_H_B : in  std_logic;
+    tri_L_B : in  std_logic;
+    tri_H_C : in  std_logic;
+    tri_L_C : in  std_logic;
+
+    -- USCITE
+    out_H0 : out std_logic;
+    out_L0 : out std_logic;
+    out_H1 : out std_logic;
+    out_L1 : out std_logic;
+    out_H2 : out std_logic;
+    out_L2 : out std_logic
+);
+end component;
 
 begin
-
     ----------------------------------------------------------------
     -- MMIO WRITE
     ----------------------------------------------------------------
-    process(clk_sys)
-    begin
-        if rising_edge(clk_sys) then
-            if rst_n='0' then
-                reg_carrier  <= (others=>'0');
-                reg_mod      <= (others=>'0');
-                reg_deadtime <= (others=>'0');
-                reg_ctrl     <= '0';
-                reg_mode     <= "00";
-            else
-				if bus_wr='1' then
-					case bus_addr is
-						when CTRL => reg_ctrl <= bus_wdata(0);
+process(clk_sys)
+begin
+    if rising_edge(clk_sys) then
+        
+        if rst_n='0' then
+            reg_carrier   <= (others=>'0');
+            reg_mod       <= (others=>'0');
+            reg_dead      <= (others=>'0');
+            reg_magnitude <= "1111111111";   -- 1023 in binario
+            buf32         <= (others=>'0');
+            reg_ctrl      <= '0';
+            reg_mode      <= "00";
 
-						when others =>
-							if reg_ctrl='0' then
-								case bus_addr is
-								  when CARRIER_0 => reg_carrier(7 downto 0)   <= unsigned(bus_wdata);
-								  when CARRIER_1 => reg_carrier(15 downto 8)  <= unsigned(bus_wdata);
-								  when CARRIER_2 => reg_carrier(23 downto 16) <= unsigned(bus_wdata);
-								  when CARRIER_3 => reg_carrier(31 downto 24) <= unsigned(bus_wdata);
-								  when MOD_0     => reg_mod(7 downto 0)  <= unsigned(bus_wdata);
-								  when MOD_1     => reg_mod(15 downto 8) <= unsigned(bus_wdata);
-								  when DEADTIME  => reg_deadtime <= unsigned(bus_wdata);
-								  when MODE      => reg_mode <= unsigned(bus_wdata(1 downto 0));
-								  when others    => null;
-								end case;
-							end if;
-					end case;
-				end if;
+        else
+            if module_sel='1' then
 
---                if bus_wr='1' and reg_ctrl='0' then
---                    case bus_addr is
---                        when CARRIER_0 => reg_carrier(7 downto 0)   <= unsigned(bus_wdata);
---                        when CARRIER_1 => reg_carrier(15 downto 8)  <= unsigned(bus_wdata);
---                        when CARRIER_2 => reg_carrier(23 downto 16) <= unsigned(bus_wdata);
---                        when CARRIER_3 => reg_carrier(31 downto 24) <= unsigned(bus_wdata);
---                        when MOD_0     => reg_mod(7 downto 0)  <= unsigned(bus_wdata);
---                        when MOD_1     => reg_mod(15 downto 8) <= unsigned(bus_wdata);
---                        when DEADTIME  => reg_deadtime <= unsigned(bus_wdata);
---                        when CTRL      => reg_ctrl <= bus_wdata(0);
---                        when MODE      => reg_mode <= unsigned(bus_wdata(1 downto 0));
---                        when others    => null;
---                    end case;
---                end if;
-					 
+                case bus_addr is
+
+                    when CTRL =>
+                        reg_ctrl <= bus_wdata(0);
+
+                    when BUF_0 =>
+                        buf32(7 downto 0) <= unsigned(bus_wdata);
+
+                    when BUF_1 =>
+                        buf32(15 downto 8) <= unsigned(bus_wdata);
+
+                    when BUF_2 =>
+                        buf32(23 downto 16) <= unsigned(bus_wdata);
+
+                    when BUF_3 =>
+                        buf32(31 downto 24) <= unsigned(bus_wdata);
+
+                    when COMMIT =>
+                        case bus_wdata(1 downto 0) is
+                            when "00" =>
+                                if reg_ctrl='0' then
+                                    reg_carrier <= std_logic_vector(buf32);
+                                end if;
+
+                            when "01" =>
+                                if reg_ctrl='0' then
+                                    reg_mod <= std_logic_vector(buf32);
+                                end if;
+
+                            when "10" =>
+                                if reg_ctrl='0' then
+                                    reg_dead <= std_logic_vector(buf32(15 downto 0));
+                                end if;
+
+                            when "11" =>
+                                reg_magnitude <= std_logic_vector(buf32(9 downto 0));
+
+                            when others =>
+                                null;
+                        end case;
+
+                        buf32 <= (others=>'0');
+
+                    when MODE =>
+                        if reg_ctrl='0' then
+                            reg_mode <= unsigned(bus_wdata(1 downto 0));
+                        end if;
+
+                    when RSEL =>
+                        case bus_wdata(1 downto 0) is
+                            when "00" =>
+                                rd_buf32 <= unsigned(reg_carrier);
+
+                            when "01" =>
+                                rd_buf32 <= unsigned(reg_mod);
+
+                            when "10" =>
+                                rd_buf32(15 downto 0)  <= unsigned(reg_dead);
+                                rd_buf32(31 downto 16) <= (others => '0');
+										  
+									 when "11" =>
+                                rd_buf32(9 downto 0)  <= unsigned(reg_magnitude);
+                                rd_buf32(31 downto 10) <= (others => '0');
+
+                            when others =>
+                                rd_buf32 <= (others => '0');
+                        end case;
+
+                    when others =>
+                        null;
+
+                end case;
             end if;
         end if;
-    end process;
+    end if;
+end process;
+
 	 
 	 -- ============================================================
     -- MMIO enable (AVR style)
     -- ============================================================
     out_en <= '1' when bus_rd='1' and
-        (bus_addr=CARRIER_0 or bus_addr=CARRIER_1 or
-         bus_addr=CARRIER_2 or bus_addr=CARRIER_3 or
-			bus_addr=MOD_0 or bus_addr=MOD_1 or
-			bus_addr=DEADTIME or
-			bus_addr=CTRL or
-			bus_addr=MODE )
+        (bus_addr=BUF_0 or bus_addr=BUF_1 or
+         bus_addr=BUF_2 or bus_addr=BUF_3 or
+			bus_addr=COMMIT or bus_addr=RSEL or
+			bus_addr=CTRL  or bus_addr=MODE )
+        else '0';
+	module_sel <= '1' when bus_wr='1' and
+        (bus_addr=BUF_0 or bus_addr=BUF_1 or
+         bus_addr=BUF_2 or bus_addr=BUF_3 or
+			bus_addr=COMMIT or bus_addr=RSEL or
+			bus_addr=CTRL or bus_addr=MODE )
         else '0';
 
     ----------------------------------------------------------------
@@ -161,277 +271,126 @@ begin
         --out_en    <= '0';
         if bus_rd='1' then
             --out_en <= '1';
-            case bus_addr is
-                when CARRIER_0 => bus_rdata <= std_logic_vector(reg_carrier(7 downto 0));
-                when CARRIER_1 => bus_rdata <= std_logic_vector(reg_carrier(15 downto 8));
-                when CARRIER_2 => bus_rdata <= std_logic_vector(reg_carrier(23 downto 16));
-                when CARRIER_3 => bus_rdata <= std_logic_vector(reg_carrier(31 downto 24));
-                when MOD_0     => bus_rdata <= std_logic_vector(reg_mod(7 downto 0));
-                when MOD_1     => bus_rdata <= std_logic_vector(reg_mod(15 downto 8));
-                when DEADTIME  => bus_rdata <= std_logic_vector(reg_deadtime);
+				case bus_addr is
+					when BUF_0 => bus_rdata <= std_logic_vector(rd_buf32(7 downto 0));
+					when BUF_1 => bus_rdata <= std_logic_vector(rd_buf32(15 downto 8));
+					when BUF_2 => bus_rdata <= std_logic_vector(rd_buf32(23 downto 16));
+					when BUF_3 => bus_rdata <= std_logic_vector(rd_buf32(31 downto 24));
+						
                 when CTRL      => bus_rdata(0) <= reg_ctrl;
                 when MODE      => bus_rdata(1 downto 0) <= std_logic_vector(reg_mode);
-                when STATUS    => bus_rdata(0) <= en_s2;
+
                 when others    => null;
             end case;
         end if;
     end process;
 	 
 	 
+	
+
+
+
+SVPWM_inst : component top_spwm_dynamic port map(
+    clk				=> clk_pwm,              -- 200 MHz
+    rst_n 			=> rst_n,
 	 
+	 pwm_freq_reg  => reg_carrier,   -- Hz
+	 freq_ctr_reg  => reg_mod,   -- DDS divisore sinusoide
+	 deadtime_reg  => reg_dead,  -- tick di pwm_clk
+	 MAGNITUDE_REG => reg_magnitude,
+   -- input  wire [4:0]  deadtime,
+
+-- ===== uscite full bridge =====
+    AH => tri_H_A,
+    AL => tri_L_A,
+    BH => tri_H_B,
+    BL => tri_L_B,
+    CH => tri_H_C,
+    CL => tri_L_C
+);
+
+
+
+SVPWM_mono_inst  : component top_spwm_single port map( 
+    clk				=> clk_pwm,              -- 200 MHz
+    rst_n 			=> rst_n,
 	 
+	 pwm_freq_reg  => reg_carrier,   -- Hz
+	 freq_ctr_reg  => reg_mod,   -- DDS divisore sinusoide
+	 deadtime_reg  => reg_dead,  -- tick di pwm_clk
+	 MAGNITUDE_REG => reg_magnitude,
+    mode 			=> reg_mode(0),         					-- 0 = Mezzo ponte, 1 = Ponte intero
+
+	 -- ===== uscite  =====
+    H => H,
+    L => L,
+    H1 => H1,
+    L1 => L1,
+    H2 => H2,
+    L2 => L2
+
+);
+
+PWM_mux_inst : component top_spwm_selector port map(
+    clk				=> clk_pwm,              -- 200 MHz
+    rst_n 			=> rst_n,
 	 
-	 
-    ----------------------------------------------------------------
-    -- sincronizzazione MMIO su clk_pwm
-    ----------------------------------------------------------------
-    process(clk_pwm)
-    begin
-        if rising_edge(clk_pwm) then
-            car_s2  <= reg_carrier;
-            mod_s2  <= resize(reg_mod,32);
-            dt_s2   <= reg_deadtime;
-            en_s2   <= reg_ctrl;
-            mode_s2 <= reg_mode;
-        end if;
-    end process;
+    mode_sel      => std_logic_vector(reg_mode),
+    out_en 			=> reg_ctrl,
+    -- MONOFASE
+    mono_H 	=> H,
+    mono_L 	=> L,
+    mono_H1 => H1,
+    mono_L1 => L1,
+    mono_H2 => H2,
+    mono_L2 => L2,
 
-    ----------------------------------------------------------------
-    -- contatore address LUT
-    ----------------------------------------------------------------
-    process(clk_pwm)
-    begin
-        if rising_edge(clk_pwm) then
-            if rst_n='0' then
-                addrA <= 0;
-            elsif en_s2='1' then
-                addrA <= (addrA + 1) mod N;
-            end if;
-        end if;
-    end process;
+    -- TRIFASE
+    tri_H_A => tri_H_A,
+    tri_L_A => tri_L_A,
+    tri_H_B => tri_H_B,
+    tri_L_B => tri_L_B,
+    tri_H_C => tri_H_C,
+    tri_L_C => tri_L_C,
 
-    addrB <= (addrA + OFF120) mod N;
-    addrC <= (addrA + OFF240) mod N;
+    -- USCITE
+    out_H0 => AH,
+    out_L0 => AL,
+    out_H1 => BH,
+    out_L1 => BL,
+    out_H2 => CH,
+    out_L2 => CL
+);
 
-    ----------------------------------------------------------------
-    -- instanziazione ROM esterna SIN_ROM
-    ----------------------------------------------------------------
---    U_ROM_A : entity work.SIN_ROM port map(address => std_logic_vector(to_unsigned(addrA,11)), q => sinA_out);
---    U_ROM_B : entity work.SIN_ROM port map(address => std_logic_vector(to_unsigned(addrB,11)), q => sinB_out);
---    U_ROM_C : entity work.SIN_ROM port map(address => std_logic_vector(to_unsigned(addrC,11)), q => sinC_out);
-	 U_ROM_A : entity work.SIN_ROM
-    port map(
-        clock     => clk_pwm,
-        address => std_logic_vector(to_unsigned(addrA,11)),
-        q       => sinA_out
-    );
-	 U_ROM_B : entity work.SIN_ROM
-    port map(
-        clock     => clk_pwm,
-        address => std_logic_vector(to_unsigned(addrB,11)),
-        q       => sinB_out
-    );
-	 U_ROM_C : entity work.SIN_ROM
-    port map(
-        clock     => clk_pwm,
-        address => std_logic_vector(to_unsigned(addrC,11)),
-        q       => sinC_out
-    );
-
-    ----------------------------------------------------------------
-    -- registrazione valori LUT
-    ----------------------------------------------------------------
-    process(clk_pwm)
-    begin
-        if rising_edge(clk_pwm) then
-            sinA_reg <= unsigned(sinA_out);
-            sinB_reg <= unsigned(sinB_out);
-            sinC_reg <= unsigned(sinC_out);
-        end if;
-    end process;
-
-
-    -- apply modulation
-    ----------------------------------------------------------------
-    sinA_scaled <= resize((sinA_reg * mod_s2(9 downto 0)) / 1023, 10);
-    sinB_scaled <= resize((sinB_reg * mod_s2(9 downto 0)) / 1023, 10);
-    sinC_scaled <= resize((sinC_reg * mod_s2(9 downto 0)) / 1023, 10);
-	 
-	 
-
-    ----------------------------------------------------------------
-    -- PWM carrier
-    ----------------------------------------------------------------
-    process(clk_pwm)
-    begin
-        if rising_edge(clk_pwm) then
-            if rst_n='0' then
-                carrier <= (others=>'0');
-            elsif en_s2='1' then
-                if carrier >= unsigned(car_s2(9 downto 0)) then
-                    carrier <= (others=>'0');
-                else
-                    carrier <= carrier + 1;
-                end if;
-            end if;
-        end if;
-    end process;
-
-    pwmA <= '1' when sinA_scaled > carrier else '0';
-    pwmB <= '1' when sinB_scaled > carrier else '0';
-    pwmC <= '1' when sinC_scaled > carrier else '0';
+    
 
     ----------------------------------------------------------------
     -- selezione modalità
     ----------------------------------------------------------------
-    process(all)
-    begin
-        case mode_s2 is
-            when "00" =>  -- trifase
-                pwmA_i <= pwmA;
-                pwmB_i <= pwmB;
-                pwmC_i <= pwmC;
-            when "01" =>  -- mono mezzo ponte
-                pwmA_i <= pwmA;
-                pwmB_i <= '0';
-                pwmC_i <= '0';
-            when "10" =>  -- mono ponte intero
-                pwmA_i <= pwmA;
-                pwmB_i <= not pwmA;
-                pwmC_i <= '0';
-            when others =>
-                pwmA_i <= '0';
-                pwmB_i <= '0';
-                pwmC_i <= '0';
-        end case;
-    end process;
-
-    ----------------------------------------------------------------
-    -- deadtime driver
-    ----------------------------------------------------------------
---    process(clk_pwm)
+--    process(all)
 --    begin
---        if rising_edge(clk_pwm) then
---            if rst_n='0' then
---                dtA <= (others=>'0'); stA <= '0';
---                dtB <= (others=>'0'); stB <= '0';
---                dtC <= (others=>'0'); stC <= '0';
---                AH <= '0'; AL <= '0';
---                BH <= '0'; BL <= '0';
---                CH <= '0'; CL <= '0';
---            else
---                -- Phase A
---                if pwmA_i /= stA then
---                    stA <= pwmA_i;
---                    if dt_s2 = 0 then
---                        AH <= pwmA_i;
---                        AL <= not pwmA_i;
---                    else
---                        dtA <= dt_s2;
---                        AH <= '0'; AL <= '0';
---                    end if;
---                elsif dtA /= 0 then
---                    dtA <= dtA - 1;
---                else
---                    AH <= stA;
---                    AL <= not stA;
---                end if;
---                -- Phase B
---                if pwmB_i /= stB then
---                    stB <= pwmB_i;
---                    if dt_s2 = 0 then
---                        BH <= pwmB_i;
---                        BL <= not pwmB_i;
---                    else
---                        dtB <= dt_s2;
---                        BH <= '0'; BL <= '0';
---                    end if;
---                elsif dtB /= 0 then
---                    dtB <= dtB - 1;
---                else
---                    BH <= stB;
---                    BL <= not stB;
---                end if;
---                -- Phase C
---                if pwmC_i /= stC then
---                    stC <= pwmC_i;
---                    if dt_s2 = 0 then
---                        CH <= pwmC_i;
---                        CL <= not pwmC_i;
---                    else
---                        dtC <= dt_s2;
---                        CH <= '0'; CL <= '0';
---                    end if;
---                elsif dtC /= 0 then
---                    dtC <= dtC - 1;
---                else
---                    CH <= stC;
---                    CL <= not stC;
---                end if;
---            end if;
---        end if;
+--        case mode_s2 is
+--            when "00" =>  -- trifase
+--                pwmA_i <= pwmA;
+--                pwmB_i <= pwmB;
+--                pwmC_i <= pwmC;
+--            when "01" =>  -- mono mezzo ponte
+--                pwmA_i <= pwmA;
+--                pwmB_i <= '0';
+--                pwmC_i <= '0';
+--            when "10" =>  -- mono ponte intero
+--                pwmA_i <= pwmA;
+--                pwmB_i <= not pwmA;
+--                pwmC_i <= '0';
+--            when others =>
+--                pwmA_i <= '0';
+--                pwmB_i <= '0';
+--                pwmC_i <= '0';
+--        end case;
 --    end process;
 
- ----------------------------------------------------------------
-    -- deadtime driver con blocco uscite CTRL=0
-    ----------------------------------------------------------------
-    process(clk_pwm)
-    begin
-        if rising_edge(clk_pwm) then
-            if rst_n='0' or en_s2='0' then
-                dtA <= (others=>'0'); stA <= '0';
-                dtB <= (others=>'0'); stB <= '0';
-                dtC <= (others=>'0'); stC <= '0';
-                AH <= '0'; AL <= '0';
-                BH <= '0'; BL <= '0';
-                CH <= '0'; CL <= '0';
-                init_done <= '0';
-            else
-                if init_done = '0' then
-                    stA <= pwmA_i;
-                    stB <= pwmB_i;
-                    stC <= pwmC_i;
-                    AH <= pwmA_i; AL <= not pwmA_i;
-                    BH <= pwmB_i; BL <= not pwmB_i;
-                    CH <= pwmC_i; CL <= not pwmC_i;
-                    init_done <= '1';
-                else
-                    -- Phase A
-                    if pwmA_i /= stA then
-                        stA <= pwmA_i;
-                        dtA <= dt_s2;
-                        AH <= '0'; AL <= '0';
-                    elsif dtA /= 0 then
-                        dtA <= dtA - 1;
-                    else
-                        AH <= stA;
-                        AL <= not stA;
-                    end if;
-                    -- Phase B
-                    if pwmB_i /= stB then
-                        stB <= pwmB_i;
-                        dtB <= dt_s2;
-                        BH <= '0'; BL <= '0';
-                    elsif dtB /= 0 then
-                        dtB <= dtB - 1;
-                    else
-                        BH <= stB;
-                        BL <= not stB;
-                    end if;
-                    -- Phase C
-                    if pwmC_i /= stC then
-                        stC <= pwmC_i;
-                        dtC <= dt_s2;
-                        CH <= '0'; CL <= '0';
-                    elsif dtC /= 0 then
-                        dtC <= dtC - 1;
-                    else
-                        CH <= stC;
-                        CL <= not stC;
-                    end if;
-                end if;
-            end if;
-        end if;
-    end process;
+  
+
+ 
 
 end architecture;

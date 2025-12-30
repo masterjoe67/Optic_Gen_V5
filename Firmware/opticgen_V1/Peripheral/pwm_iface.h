@@ -12,20 +12,18 @@
 #define R3_ADDR_LOW   0x06
 #define R3_ADDR_HIGH  0x07
 
-#define CARRIER_0   _SFR_IO8(0x00)
-#define CARRIER_1   _SFR_IO8(0x01)
-#define CARRIER_2   _SFR_IO8(0x02)
-#define CARRIER_3   _SFR_IO8(0x03)
-#define MOD_0       _SFR_IO8(0x04)
-#define MOD_1       _SFR_IO8(0x05)
-#define DEADTIME    _SFR_IO8(0x06)
-#define CTRL        _SFR_IO8(0x07)
-#define MODE        _SFR_IO8(0x1e)
-#define STATUS      _SFR_IO8(0x1f)
+#define MMIO_B0         _SFR_IO8(0x00)
+#define MMIO_B1         _SFR_IO8(0x01)
+#define MMIO_B2         _SFR_IO8(0x02)
+#define MMIO_B3         _SFR_IO8(0x03)
+#define MMIO_COMMIT     _SFR_IO8(0x04)
+#define MMIO_RSEL       _SFR_IO8(0x05)
 
-#define PWM_CARRIER _SFR_DWORD(0x00)
+#define CTRL        _SFR_IO8(0x06)
+#define MODE        _SFR_IO8(0x07)
 
-#define PWM_MOD     _SFR_IO16(0x04)
+
+
 
 #define PWM_F_CLK 50000000UL  // 50 MHz
 #define CLK_PERIOD_NS 20UL
@@ -38,22 +36,24 @@ typedef enum {
     MODE_3PHASE,
 } pwm_mode_t;
 
-void pwm_set_carrier(uint32_t value);
-void pwm_set_mod(uint16_t value);
-void pwm_set_deadtime(uint8_t value);
+void write_reg32(uint8_t commit_sel, uint32_t value);
+uint32_t read_reg32(uint8_t sel);
+void write_reg16(uint8_t commit_sel, uint32_t value);
+uint16_t read_reg16(uint8_t sel);
+
+
 void pwm_enable(bool en);
 void pwm_set_mode(uint8_t mode);
 void pwm_set_carrier_hz(uint32_t hz);
 void pwm_set_mod_hz(uint16_t hz);
-void pwm_set_deadtime_ns(uint32_t ns);
+void pwm_set_deadtime_ns(uint16_t ns);
+void pwm_set_magnitude(uint8_t v);
 
 uint32_t pwm_get_carrier_hz(void);
-uint16_t pwm_get_mod_hz(void);
-uint32_t pwm_get_deadtime_ns(void);
+uint32_t pwm_get_mod_hz(void);
+uint16_t pwm_get_deadtime_ns(void);
+uint16_t pwm_get_magnitude(void);
 
-uint32_t pwm_get_carrier(void);
-uint16_t pwm_get_mod(void);
-uint8_t pwm_get_deadtime(void);
 bool pwm_is_enabled(void);
 uint8_t pwm_get_mode(void);
 
