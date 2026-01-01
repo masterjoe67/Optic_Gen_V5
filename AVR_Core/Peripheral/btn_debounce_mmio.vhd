@@ -6,7 +6,7 @@ use work.AVRuCPackage.all; -- se serve per OFF_DB ecc.
 
 entity btn_debounce_mmio is
     generic (
-        N              : integer := 7;
+        N              : integer := 8;
         CLK_FREQ_HZ    : integer := 16000000;
         SAMPLE_MS      : integer := 2;
         THRESH         : integer := 10
@@ -200,10 +200,11 @@ begin
     process(clk, rstn)
     begin
         if rstn='0' then
-            mask_reg <= "0000011"; --(others=>'1');
+            mask_reg <= "11111111"; --(others=>'1');
         elsif rising_edge(clk) then
             if bus_write='1' and mask_reg_Sel = '1' then
-                mask_reg <= bus_wdata(6 downto 0);
+                mask_reg <= bus_wdata;
+					 
             end if;
         end if;
     end process;
@@ -219,7 +220,7 @@ begin
             clear_req <= (others=>'0');
 
             if bus_write='1' and bus_addr=OFF_CLEAR then
-                clear_req <= bus_wdata(6 downto 0) and mask_reg;
+                clear_req <= bus_wdata and mask_reg;
             elsif bus_read='1' and bus_addr=OFF_EVT then
                 clear_req <= evt_latch and mask_reg;
             end if;
@@ -235,9 +236,9 @@ begin
 
         if bus_read='1' then
             case bus_addr is
-                when OFF_DB   => bus_rdata_i(6 downto 0) <= db and mask_reg;
-                when OFF_EVT  => bus_rdata_i(6 downto 0) <= evt_latch and mask_reg;
-                when OFF_MASK => bus_rdata_i(6 downto 0) <= mask_reg;
+                when OFF_DB   => bus_rdata_i(7 downto 0) <= db and mask_reg;
+                when OFF_EVT  => bus_rdata_i(7 downto 0) <= evt_latch and mask_reg;
+                when OFF_MASK => bus_rdata_i(7 downto 0) <= mask_reg;
                 when others   => bus_rdata_i <= x"EF";
             end case;
         end if;

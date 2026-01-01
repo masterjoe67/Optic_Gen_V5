@@ -26,7 +26,7 @@ uint8_t debounce_get_events(void);
 
 void debounce_clear(uint8_t mask);
 
-
+uint16_t encoder_read(void);
 
 
 // encoder movement: returns -1,0,+1 for rotation since last poll

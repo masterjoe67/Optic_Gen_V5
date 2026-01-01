@@ -37,24 +37,7 @@ component touch_irq_fpga is
     );
 end component;
 
---component mmio_regs_16bit_direct is port(
---        clk         : in  std_logic;
---        rst         : in  std_logic;
---
---        -- Bus AVR a 8 bit
---        core_write  : in  std_logic;
---        core_read        : in  std_logic;
---        core_addr   : in  std_logic_vector(5 downto 0);
---        core_data_in  : in  std_logic_vector(7 downto 0);
---        core_data_out : out std_logic_vector(7 downto 0);
---		  out_en     	 : out std_logic;
---        -- Uscite dirette a 16 bit
---        ext_reg0    : out std_logic_vector(15 downto 0);
---        ext_reg1    : out std_logic_vector(15 downto 0);
---        ext_reg2    : out std_logic_vector(15 downto 0);
---        ext_reg3    : out std_logic_vector(15 downto 0)
---    );
---end component;
+
 
 component spwm_generator_mmio is port (
         -- clock
@@ -79,8 +62,10 @@ end component;
 
 component mmio_encoder is
   port (
-    clk       : in  std_logic;
-    reset     : in  std_logic;
+    clk          : in  std_logic;
+    reset        : in  std_logic;
+	 set_origin	  : IN     STD_LOGIC;
+    direction    : OUT    STD_LOGIC;                            --direction of last change, 1 = positive, 0 = negative
 
     -- encoder signals
     enc_a     : in  std_logic;

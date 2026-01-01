@@ -173,11 +173,8 @@ void ILI9341_Send_Burst(uint16_t color, uint32_t repetitions)
 
 void ILI9341_Draw_Filled_Rectangle(unsigned int color,unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2)
 {
-  //uart_print("Debug-800_a\r\n");
 	ILI9341_Set_Address(x1, y1, x2, y2);
-  //uart_print("Debug-800_b\r\n");
 	ILI9341_Send_Burst(color, (uint16_t)((long)(x2-x1+1) * (long)(y2-y1+1)));
-  //uart_print("Debug-800_c\r\n");
 }
 
 void ILI9341_Draw_Empty_Rectangle(unsigned int color,unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2)
@@ -597,48 +594,7 @@ void ILI9341_set_text_size(uint8_t size) {
     text_size = size;
 }
 
-/*void ILI9341_putc(char c) {
-    if(c == '\n') {
-        cursor_y += 8 * text_size;
-        cursor_x = 0;
-    } else if(c == '\r') {
-        cursor_x = 0;
-    } else {
-        ILI9341_Draw_Char(cursor_x, cursor_y, text_color, text_bg, c, text_size);
-        cursor_x += 8 * text_size;  // passo orizzontale di 8 pixel per carattere
-    }
-}*/
 
-/*void ILI9341_print(const char *str) {
-    while(*str) {
-        ILI9341_putc(*str++);
-    }
-}*/
-
-/*void ILI9341_PrintInt(int val) {
-    char buf[12];
-    snprintf(buf, sizeof(buf), "%d", val);
-    ILI9341_print(buf);
-}
-
-void ILI9341_PrintPercent(int val) {
-    ILI9341_PrintInt(val);
-    ILI9341_print(" %");
-}
-
-void ILI9341_PrintHz(int val) {
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%d Hz", val);
-    ILI9341_print(buf);
-}
-
-void ILI9341_PrintKHz(float val) {
-    int khz = (int)val;
-    int hz = (int)((val - khz) * 1000);
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%d.%03d kHz", khz, hz);
-    ILI9341_print(buf);
-}*/
 
 /***************************************************************************************
 ** Function name:           fillCircleHelper
@@ -1084,7 +1040,6 @@ int drawChar(unsigned int uniCode, int x, int y, int font)
 #ifdef LOAD_FONT2
   if (font == 2)
   {
-    //uart_print("font = "); uart_print_hex16(font); uart_print("\r\n");
       // This is 20us faster than using the fontdata structure (0.413ms per character instead of 0.433ms)
       flash_address = pgm_read_word(&chrtbl_f16[uniCode]);
       width = pgm_read_byte(widtbl_f16 + uniCode);
@@ -1124,7 +1079,6 @@ int drawChar(unsigned int uniCode, int x, int y, int font)
     if (x + width * textsize >= (int16_t)X_SIZE) return width * textsize ;
 
     if (textcolor == textbgcolor || textsize != 1) {
-//uart_print("cazz2 = "); uart_print_hex16(textsize); uart_print("\r\n");
       for (int i = 0; i < height; i++)
       {
         if (textcolor != textbgcolor) fillRect(x, pY, width * textsize, textsize, textbgcolor);
@@ -1163,8 +1117,6 @@ int drawChar(unsigned int uniCode, int x, int y, int font)
     else
       // Faster drawing of characters and background using block write
     {
-      //uart_print("cazz3 = "); uart_print_hex16(textsize); uart_print("\r\n");
-      //spi_begin();
       ILI9341_Set_Address(x, y, (x + w * 8) - 1, y + height - 1);
 
       byte mask;
@@ -1341,7 +1293,7 @@ void setTextFont(uint8_t f)
 ** Function name:           write
 ** Description:             draw characters piped through serial stream
 ***************************************************************************************/
-size_t write(uint8_t uniCode)
+size_t ILI9341_write(uint8_t uniCode)
 {
   if (uniCode == '\r') return 1;
   unsigned int width = 0;
@@ -1352,7 +1304,6 @@ size_t write(uint8_t uniCode)
 #ifdef LOAD_FONT2
   if (textfont == 2)
   {
-    //uart_print("Debug-F2\r\n");
       // This is 20us faster than using the fontdata structure (0.443ms per character instead of 0.465ms)
       width = pgm_read_byte(widtbl_f16 + uniCode-32);
       height = chr_hgt_f16;
@@ -1387,8 +1338,6 @@ size_t write(uint8_t uniCode)
 #endif
 
 height = height * textsize;
-//uart_print("height = "); uart_print_hex16(height); uart_print("\r\n");
-//uart_print("textfont = "); uart_print_hex16(textfont); uart_print("\r\n");
 
   if (uniCode == '\n') {
     cursor_y += height;
@@ -1401,8 +1350,7 @@ height = height * textsize;
       cursor_y += height;
       cursor_x = 0;
     }
-    //uart_print("cursor_x = "); uart_print_hex16(cursor_x); uart_print("\r\n");
-    //uart_print("cursor_y = "); uart_print_hex16(cursor_y); uart_print("\r\n");
+
     cursor_x += drawChar(uniCode, cursor_x, cursor_y, textfont);
   }
   return 1;
@@ -1411,7 +1359,7 @@ height = height * textsize;
 // stampa semplice stringa
     void ILI9341_Print(const char *str) {
         while(*str) {
-            write((uint8_t)*str++);
+            ILI9341_write((uint8_t)*str++);
         }
     }
 

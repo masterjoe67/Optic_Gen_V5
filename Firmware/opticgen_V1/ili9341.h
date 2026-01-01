@@ -114,7 +114,7 @@ void fillScreen(uint16_t color);
 void setTextColor(uint16_t c, uint16_t b);
 void setTextSize(uint8_t s);
 
-size_t write(uint8_t uniCode);
+size_t ILI9341_write(uint8_t uniCode);
 void ILI9341_Print(const char *str);
 
 int drawChar(unsigned int uniCode, int x, int y, int font);

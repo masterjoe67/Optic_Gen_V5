@@ -14,8 +14,29 @@ void leds_field_carrier_off(void) {
     PORTA &= ~(1 << led_carrier);
 }
 
+void leds_field_mod_on(void) { 
+    PORTA |= (1 << led_mod);
+}
+
+void leds_field_mod_off(void) { 
+    PORTA &= ~(1 << led_mod);
+}
+
+void leds_field_mag_on(void) { 
+    PORTA |= (1 << led_mag);
+}
+
+void leds_field_mag_off(void) { 
+    PORTA &= ~(1 << led_mag);
+}
+
+void leds_field_dead_on(void) { 
+    PORTA |= (1 << led_dead);
+}
+
+void leds_field_dead_off(void) { 
+    PORTA &= ~(1 << led_dead);
+}
 
 
-void leds_field_mod_on(void) { /* set LED pin */ }
-void leds_field_dead_on(void) { /* set LED pin */ }
 void leds_output_set(bool on) { /* set/clear output LED */ }

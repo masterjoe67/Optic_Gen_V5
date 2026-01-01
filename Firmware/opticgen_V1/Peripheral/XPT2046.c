@@ -231,9 +231,6 @@ int8_t touch_process_zones(uint16_t x, uint16_t y, uint8_t touch_down)
 
     if (touch_down && !last_touch) {
         // fronte di salita: nuovo tocco
-  
-    uart_print("fronte di salita: nuovo tocco\r\n");
-
         for (uint8_t i = 0; i < NUM_ZONES; i++) {
             if (point_in_zone(x, y, &zones[i])) {
                 zones[i].pressed = 1;

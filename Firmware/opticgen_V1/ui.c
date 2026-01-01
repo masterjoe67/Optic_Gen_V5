@@ -1,5 +1,4 @@
 #include "ui.h"
-//#include "ILI9341_text.h" // your text functions: ILI9341_set_cursor, Print, Fill_Rect...
 #include "Peripheral/input.h"
 #include "Peripheral/leds.h"
 #include <stdio.h>
@@ -38,6 +37,12 @@ static uint32_t modHz     = 500U;
 static uint8_t magnitude = 100U;
 static uint32_t deadNs    = 20U;
 
+static uint32_t lastCarrier=0xFFFFFFFF;
+static uint32_t lastMod=0xFFFFFFFF;
+static uint8_t lastMagnitude=0xFF;
+static uint32_t lastDead=0xFFFFFFFF;
+static pwm_mode_t lastMode = (pwm_mode_t)0xFF;
+
 static pwm_mode_t currentMode = MODE_HALF_BRIDGE;
 static bool outputEnabled = false;
 
@@ -46,8 +51,15 @@ static field_t selectedField = FIELD_NONE;
 
 // digit selection: 0 = ones, 1 = tens, 2 = hundreds, etc.
 static uint8_t digit_pos = 0;
-
-
+static uint8_t last_digit_pos = 0;
+uint8_t field_locked = 0;
+uint8_t ui_locked;
+uint32_t step = 0;
+uint8_t cursor_pos = 1;     // 0=unità, 1=decine, 2=centinaia…
+uint8_t cursor_on = 0;      // stato ON/OFF del lampeggio
+uint8_t cursor_blink = 0;   
+uint8_t refresh = 0;
+bool flash_on  = false;
 
 static void draw_static_layout(void)
 {
@@ -92,81 +104,125 @@ static void draw_static_layout(void)
     ILI9341_Print("Dead Time:");
 }
 
+char carrier_buf[16] = "                ";
+char mod_buf[16] = "                ";
+char mag_buf[16] = "                ";
+char dea_buf[16] = "                ";
 
+static void blink_cursor(char *buffer, int y_pos, int digit){
+    int16_t x = 140;
+    digit--;
+        for(int i=0;i<5;i++)
+        {
+            if(i == (digit - digit_pos) && cursor_on && cursor_blink){
+                //drawChar(' ', x, CAR_VALUE_CUR_Y, 2);
 
+                fillRect(x, y_pos, 18, 32, 0x0000);
+                //ILI9341_write(buf[i]);  // disegna cifra
+            }else if((i == (digit - digit_pos) && !cursor_on) || (last_digit_pos != digit_pos)){
+                drawChar(buffer[i], x, y_pos, 2);
+            }    
+            x += 18;
+        }
+        last_digit_pos = digit_pos;
+}
+
+// converte un uint32_t in stringa a 5 cifre con zeri iniziali
+void uint32_to_str5(uint32_t val, char *buf) {
+    for(int i=4; i>=0; i--) {
+        buf[i] = '0' + (val % 10);
+        val /= 10;
+    }
+    buf[5] = '\0';
+}
+
+void uint32_to_str3(uint32_t val, char *buf) {
+    for(int i=2; i>=0; i--) {
+        buf[i] = '0' + (val % 10);
+        val /= 10;
+    }
+    buf[3] = '\0';
+}
 
 static void render_values(bool force)
 {
-    static uint32_t lastCarrier=0xFFFFFFFF;
-    static uint32_t lastMod=0xFFFFFFFF;
-    static uint8_t lastMagnitude=0xFF;
-    static uint32_t lastDead=0xFFFFFFFF;
-    static pwm_mode_t lastMode = (pwm_mode_t)0xFF;
+    setTextSize(2);
+    setTextColor(0xFFFF, 0x0000);
     lastOutput = !outputEnabled;
 
-    //carrierHz = pwm_get_carrier_hz();
-    //modHz = pwm_get_mod_hz();
-    //deadNs = pwm_get_deadtime_ns();
-
-
     if(force || carrierHz != lastCarrier) {
-        
-        char buf[24];
-        setTextSize(2);
-        setTextColor(0xFFFF, 0x0000);
-        // clear area
-        //ILI9341_Draw_Filled_Rectangle(120,40,294,28, 0xFF00);
-        fillRect(140, CAR_VALUE_CUR_Y, 170, 32, 0x0000);
-        //uart_print("Debug-500_a\r\n");
-        ILI9341_set_cursor(140, CAR_VALUE_CUR_Y);
-        //uart_print("Debug-500_b\r\n");
-        snprintf(buf,sizeof(buf), "%lu Hz", (unsigned long)carrierHz);
-        ILI9341_Print(buf);
+
+        uint32_to_str5(carrierHz, carrier_buf);
+        carrier_buf[5] = ' ';
+        carrier_buf[6] = 'H';
+        carrier_buf[7] = 'z';
+        carrier_buf[8] = '\0';
         lastCarrier = carrierHz;
+        int16_t x = 140;
+        fillRect(140, CAR_VALUE_CUR_Y, 170, 32, 0x0000);
+        for(int i=0;i<8;i++)
+        {
+            drawChar(carrier_buf[i], x, CAR_VALUE_CUR_Y, 2);
+            x += 18;
+        }
+
     }
 
-    //uart_print("Debug-501\r\n");
     if(force || modHz != lastMod) {
-        char buf[24];
-        setTextSize(2);
-        setTextColor(0xFFFF, 0x0000);
         fillRect(140,MOD_VALUE_CUR_Y, 170,32, 0x0000);
-        ILI9341_set_cursor(140, MOD_VALUE_CUR_Y);
-        snprintf(buf,sizeof(buf), "%lu Hz", (unsigned long)modHz);
-        ILI9341_Print(buf);
+
+        uint32_to_str3(modHz, mod_buf);
+        mod_buf[3] = ' ';
+        mod_buf[4] = 'H';
+        mod_buf[5] = 'z';
+        mod_buf[6] = '\0';
+        //ILI9341_Print(buf);
         lastMod = modHz;
+        int16_t x = 140;
+        for(int i=0;i<6;i++)
+        {
+            drawChar(mod_buf[i], x, MOD_VALUE_CUR_Y, 2);
+            x += 18;
+        }
     }
 
     if(force || magnitude != lastMagnitude) {
-        char buf[24];
-        setTextSize(2);
-        setTextColor(0xFFFF, 0x0000);
         fillRect(140,MAG_VALUE_CUR_Y,170,32, 0x0000);
         ILI9341_set_cursor(140, MAG_VALUE_CUR_Y);
-        //snprintf(buf,sizeof(buf), "%lu ", (unsigned long)magnitude);
-        snprintf(buf, sizeof(buf), "%u %%", magnitude);
-        ILI9341_Print(buf);
+
+        //snprintf(mag_buf, sizeof(mag_buf), "%03u %%", magnitude);
+        uint32_to_str3(magnitude, mag_buf);
+        mag_buf[3] = ' ';
+        mag_buf[4] = '%';
+        mag_buf[5] = '\0';
+
         lastMagnitude = magnitude;
+        int16_t x = 140;
+        for(int i=0;i<6;i++)
+        {
+            drawChar(mag_buf[i], x, MAG_VALUE_CUR_Y, 2);
+            x += 18;
+        }
     }
 
     if(force || deadNs != lastDead) {
-        char buf[24];
-        int i = 0;
-        setTextSize(2);
-        setTextColor(0xFFFF, 0x0000);
-        //ILI9341_Draw_Filled_Rectangle(160,138,160,18, 0xB000);
         fillRect(140, DEA_VALUE_CUR_Y, 170, 32, 0x0000);
         ILI9341_set_cursor(140, DEA_VALUE_CUR_Y);
-        //snprintf(buf,sizeof(buf), "%lu ns", (unsigned long)deadNs);
-        i = u32_to_decstr(deadNs, buf);
-        buf[i++] = ' ';
-        buf[i++] = 'n';
-        buf[i++] = 's';
-        buf[i]   = '\0';
 
-        //uart_print(buf);
-        ILI9341_Print(buf);
+        //snprintf(dea_buf, sizeof(dea_buf), "%05lu ns", (unsigned long)deadNs);
+        uint32_to_str5(deadNs, dea_buf);
+        dea_buf[5] = ' ';
+        dea_buf[6] = 'n';
+        dea_buf[7] = 'S';
+        dea_buf[8] = '\0';
+
         lastDead = deadNs;
+        int16_t x = 140;
+        for(int i=0;i<8;i++)
+        {
+            drawChar(dea_buf[i], x, DEA_VALUE_CUR_Y, 2);
+            x += 18;
+        }
     }
     if(force || currentMode != lastMode) {
         setTextSize(2);
@@ -189,7 +245,6 @@ static void render_values(bool force)
         lastOutput = outputEnabled;
     }
 
-    //uart_print("Debug-600_a\r\n");
 }
 
 
@@ -205,69 +260,61 @@ uint8_t digits_u32(uint32_t v)
     return 5;   // fino a 50000
 }
 
-uint16_t cur_x, cur_y = 0;
-
-
-bool flash_on, st = false;
-
-cursor_flash(uint16_t x, uint16_t y, bool flash){
-    cur_x = x;
-    cur_y = y;
-    flash_on = flash;
-    st = true;
-}
-
 
 static void highlight_selected_field(field_t f)
 {
     // draw border around selected field
     // clear previous by redrawing static boxes; for simplicity redraw both boxes each time
-    uart_print("highlight_selected_field\r\n");
     setTextSize(1);
+    setTextColor(0xFFFF, 0x0000);
     // Carrier box
     if(f == FIELD_CARRIER) {
-        //ILI9341_Draw_Filled_Rectangle(6,36,308,46, 0x001F); // blue-ish highlight background
-        //setTextColor(ILI9341_GREENYELLOW, 0x0000);
-        //ILI9341_set_cursor(12, CAR_VALUE_CUR_Y + 8); ILI9341_Print("Carrier Freq:");
-        
+        setTextColor(ILI9341_GREENYELLOW, 0x0000);
+        ILI9341_set_cursor(12, CAR_VALUE_CUR_Y + 8); ILI9341_Print("Carrier Freq:");
         
         if(digit_pos > digits_u32(carrierHz)) digit_pos = digits_u32(carrierHz);
-        cursor_flash(140 + (digit_pos * 16), CAR_VALUE_CUR_Y + 29, true);
+        cursor_blink = 1;
         
     } else {
-        //ILI9341_Draw_Filled_Rectangle(6,36,308,46, 0x0000);
         setTextColor(0xFFFF, 0x0000);
         ILI9341_set_cursor(12, CAR_VALUE_CUR_Y + 8); ILI9341_Print("Carrier Freq:");
+        
     }
     // Mod box
     if(f == FIELD_MOD) {
-        //ILI9341_Draw_Filled_Rectangle(6,86,308,46, 0x03E0); // green-ish
         setTextColor(ILI9341_GREENYELLOW, 0x0000);
         ILI9341_set_cursor(12, MOD_VALUE_CUR_Y + 8); ILI9341_Print("Modulation Freq:");
 
+        if(digit_pos > digits_u32(modHz)) digit_pos = digits_u32(modHz);
+        cursor_blink = 1;
+
     } else {
-        //ILI9341_Draw_Filled_Rectangle(6,86,308,46, 0x0000);
         setTextColor(0xFFFF, 0x0000);
         ILI9341_set_cursor(12, MOD_VALUE_CUR_Y + 8); ILI9341_Print("Modulation Freq:");
     }
+    // Mag box
+    if(f == FIELD_MAG) {
+        setTextColor(ILI9341_GREENYELLOW, 0x0000);
+        ILI9341_set_cursor(12, MAG_VALUE_CUR_Y + 8); ILI9341_Print("Modulation Freq:");
+        if(digit_pos > digits_u32(magnitude)) digit_pos = digits_u32(magnitude);
+        cursor_blink = 1;
+    } else {
+        setTextColor(0xFFFF, 0x0000);
+        ILI9341_set_cursor(12, MAG_VALUE_CUR_Y + 8); ILI9341_Print("Modulation Freq:");
+    }
     // Dead box
     if(f == FIELD_DEAD) {
-        //ILI9341_Draw_Filled_Rectangle(6,136,308,28, 0xF800); // red-ish
         setTextColor(ILI9341_GREENYELLOW, 0x0000);
         ILI9341_set_cursor(12, DEA_VALUE_CUR_Y + 8); ILI9341_Print("Dead Time:");
+        if(digit_pos > digits_u32(deadNs)) digit_pos = digits_u32(deadNs);
+        cursor_blink = 1;
     } else {
-        //ILI9341_Draw_Filled_Rectangle(6,136,308,28, 0x0000);
-        //setTextColor(0xFFFF, 0x0000);
-        //ILI9341_set_cursor(12, DEA_VALUE_CUR_Y + 8); ILI9341_Print("Dead Time:");
+        setTextColor(0xFFFF, 0x0000);
+        ILI9341_set_cursor(12, DEA_VALUE_CUR_Y + 8); ILI9341_Print("Dead Time:");
         
     }
-
-    // After coloring, redraw field labels and values
     
     setTextColor(0xFFFF, 0x0000);
-   // ILI9341_set_cursor(12, CAR_VALUE_CUR_Y + 8); ILI9341_Print("Carrier Freq:");
-    //ILI9341_set_cursor(12, MOD_VALUE_CUR_Y + 8); ILI9341_Print("Modulation Freq:");
-    //ILI9341_set_cursor(12, DEA_VALUE_CUR_Y + 8); ILI9341_Print("Dead Time:");
     render_values(true);
 }
 
@@ -293,44 +340,37 @@ static void apply_limits_and_update(void)
     pwm_enable(outputEnabled);
 }
 
-
-bool highlight_flag = false;
+volatile uint16_t refresh_count = 0;
 /* Timer0 Compare Match ISR */
 ISR(TIMER0_OVF_vect)
 {
     tick_count++;
+    refresh_count++;
 
-    if (tick_count >= 2000) {   // 2000 × 0.5 ms = 1 s
+    // ---- toggle refresh ogni 500 tick ----
+    if (refresh_count >= 500) {
+        refresh_count = 0;
+        refresh ^= 1;
+        //PORTA ^= (1 << 5);
+    }
+
+
+    if (tick_count >= 1500) {   // 2000 × 0.5 ms = 1 s
         tick_count = 0;
-        
+
         if(flash_on){
             PORTA ^= (1 << 4);
             
-            if((PORTA & (1 << 4))){
-                drawFastHLine(cur_x, cur_y, 16, ILI9341_YELLOW);
-                drawFastHLine(cur_x, cur_y+1, 16, ILI9341_YELLOW);
-            }else 
-            {
-                drawFastHLine(cur_x, cur_y, 16, ILI9341_BLACK);
-                drawFastHLine(cur_x, cur_y+1, 16, ILI9341_BLACK);
-
-            }
-        }
-    }else if (st){
-        drawFastHLine(cur_x, cur_y, 16, ILI9341_BLACK);
-        drawFastHLine(cur_x, cur_y+1, 16, ILI9341_BLACK);
-        st = false;
+  
+        }else PORTA &= ~(1 << 4);
+        
+        cursor_on ^= 1;
     }
     
 }
 
 void ui_init(void)
 {
-    /* Timer0 CTC mode */
-    //TCCR0 = (1 << WGM01);      // CTC
-    //OCR0  = 249;              // 0.5 ms tick @ 32MHz / 64
-    //TIMSK |= (1 << OCIE0);    // enable compare match interrupt
-
     // Timer0 prescaler 64
     TCCR0 = (1 << CS01) | (1 << CS00);
     TCNT0 = 0;
@@ -347,13 +387,9 @@ void ui_init(void)
     magnitude = pwm_get_magnitude();
     deadNs = pwm_get_deadtime_ns();
     ILI9341_Fill_Screen(0x780F);
-    //uart_print("Debug-1\r\n");
     draw_static_layout();
-    //uart_print("Debug-11\r\n");
     render_values(true);
-    //uart_print("Debug-122\r\n");
     highlight_selected_field(FIELD_NONE);
-    //uart_print("Debug-200\r\n");
 }
 
 void ui_splash(void)
@@ -383,13 +419,11 @@ void ui_splash(void)
     }
 }
 
-uint8_t field_locked = 0;
-uint8_t ui_locked;
-uint32_t step = 0;
+
 void ui_update(void)
 {
     uint8_t ev = debounce_get_events();
-    uint8_t btn_state = debounce_get_state();
+
     uint16_t tx, ty;
     uint8_t  td;
     static uint8_t lastMagnitude=0xFF;
@@ -398,8 +432,12 @@ void ui_update(void)
     td = XPT2046_TouchGetCoordinates(&tx, &ty);   // 1 = tocco valido
 
 
-
-
+    
+    if(ev) {
+        uart_print("Event = ");
+        uart_print_hex(ev);
+        uart_print("\r\n");
+    }
 int8_t z = touch_process_zones(tx, ty, td);
 
 if (z >= 0) {
@@ -409,7 +447,7 @@ if (z >= 0) {
 }
 
 if (field_locked) {
-    ev &= (1 << 6);   // lascia solo CONFIRM
+    ev &= (1 << 6) | (1 << 7);   // lascia solo CONFIRM
 }
 
 if (outputEnabled) {
@@ -421,7 +459,8 @@ if (outputEnabled) {
     if (ev & (1<<0)) {
         field_locked = 1;
         selectedField = FIELD_CARRIER;
-        digit_pos = 1;
+        digit_pos = 3;
+        flash_on = true;
         highlight_selected_field(selectedField);
         leds_field_carrier_on();
     }
@@ -429,6 +468,7 @@ if (outputEnabled) {
         field_locked = 1;
         selectedField = FIELD_MOD;
         digit_pos = 0;
+        flash_on = true;
         highlight_selected_field(selectedField);
         leds_field_mod_on();
     }
@@ -436,14 +476,16 @@ if (outputEnabled) {
         field_locked = 1;
         selectedField = FIELD_MAG;
         digit_pos = 0;
+        flash_on = true;
         highlight_selected_field(selectedField);
-        leds_field_mod_on();
+        leds_field_mag_on();
     }
 
     if (ev & (1<<3)) {
         field_locked = 1;
         selectedField = FIELD_DEAD;
         digit_pos = 0;
+        flash_on = true;
         highlight_selected_field(selectedField);
         leds_field_dead_on();
     }
@@ -467,17 +509,22 @@ if (outputEnabled) {
     // confirm button applies values immediately
     if (ev & (1<<6))  {
         apply_limits_and_update();
-        /* if (selectedField == FIELD_CARRIER) {
-            // carrier ranges up to 50k -> digits up to 4 (units..10000)
-            pwm_set_carrier_hz(carrierHz);
+        if (selectedField == FIELD_CARRIER) {
+            leds_field_carrier_off();
         } else if (selectedField == FIELD_MOD) {
-            pwm_set_mod_hz(modHz);
+            leds_field_mod_off();
+        } else if (selectedField == FIELD_MAG) {
+            leds_field_mag_off();
         } else if (selectedField == FIELD_DEAD) {
-            
-        }*/
+            leds_field_dead_off();
+        }
+        cursor_blink = 0;
+        flash_on = false;
+        highlight_selected_field(FIELD_NONE);
+        render_values(true);
         field_locked = 0;
         selectedField = FIELD_NONE;
-        cursor_flash(cur_x, cur_y, false);
+
     }
 
     // encoder switch: cycle digit position
@@ -486,8 +533,9 @@ if (outputEnabled) {
         if (selectedField == FIELD_CARRIER) {
             // carrier ranges up to 50k -> digits up to 4 (units..10000)
             digit_pos = (digit_pos + 1) % 5;
+
         } else if (selectedField == FIELD_MOD) {
-            digit_pos = (digit_pos + 1) % 4;
+            digit_pos = (digit_pos + 1) % 3;
         } else if (selectedField == FIELD_DEAD) {
             digit_pos = (digit_pos + 1) % 5; // dead in ns, allow up to 10k
         }
@@ -500,9 +548,9 @@ if (outputEnabled) {
         step = 1;
         for (uint8_t i=0;i<digit_pos;i++) step *= 10;
         if (selectedField == FIELD_CARRIER) {
-            carrierHz = update_param_32(carrierHz, 150, 20000);
+            carrierHz = update_param_32(carrierHz, MIN_CARRIER_HZ, MAX_CARRIER_HZ, step);
         } else if (selectedField == FIELD_MOD) {
-            modHz = update_param_32(modHz, 1, 500);
+            modHz = update_param_32(modHz, MIN_MOD_HZ, MAX_MOD_HZ, step);
         } else if (selectedField == FIELD_MAG) {
             lastMagnitude = magnitude;
             magnitude = update_param_8(magnitude, 0, 100);
@@ -516,120 +564,74 @@ if (outputEnabled) {
         }
         render_values(false);
     }
+    if ((selectedField == FIELD_CARRIER) & refresh) blink_cursor(carrier_buf, CAR_VALUE_CUR_Y, 5);
+    if ((selectedField == FIELD_MOD) & refresh) blink_cursor(mod_buf, MOD_VALUE_CUR_Y, 3);
+    if ((selectedField == FIELD_MAG) & refresh) blink_cursor(mag_buf, MAG_VALUE_CUR_Y, 3);
+    if ((selectedField == FIELD_DEAD) & refresh) blink_cursor(dea_buf, DEA_VALUE_CUR_Y, 5);
 }
 
-uint32_t update_param_32(uint32_t param, uint32_t min, uint32_t max)
+
+static int16_t prev_det = 0;
+
+uint32_t update_param_32(uint32_t param, uint32_t min, uint32_t max, uint32_t step)
 {
-    static uint8_t enc_prev;
-    static int8_t acc = 0;
-    static uint16_t speed_cnt = 0;
+    int16_t pos = encoder_read();   // 0..1023
 
-    uint8_t enc = encoder_read();
-    int8_t delta = (int8_t)(enc - enc_prev);
-    enc_prev = enc;
+    // riduci a detent dividendo per 4
+    int16_t det = pos;
 
-    if(delta == 0) {
-        speed_cnt = 0;
-        return param;
-    }
+    int16_t diff = det - prev_det;
+    prev_det = det;
 
-    speed_cnt++;
+    if(diff == 0) return param;
 
-    uint8_t div = 2;          // base sensitivity
-    if(speed_cnt > 20) div = 2;
-    if(speed_cnt > 50) div = 1;
+    int32_t new_param = (int32_t)param + (int32_t)diff * step;
 
-    acc += delta;
+    if(new_param < min) new_param = min;
+    if(new_param > max) new_param = max;
 
-    if(acc >= div) {
-        acc = 0;
-        if(param < max) param += step;
-    }
-    else if(acc <= -div) {
-        acc = 0;
-        if(param > min) param -= step;
-    }
-
-    if( param < min ) param = min;
-    if( param > max ) param = max;
-
-    return param;
+    return (uint32_t)new_param;
 }
+
+
 
 uint16_t update_param_16(uint16_t param, uint16_t min, uint16_t max)
 {
-    static uint8_t enc_prev;
-    static int8_t acc = 0;
-    static uint16_t speed_cnt = 0;
+    int16_t pos = encoder_read();   // 0..1023
 
-    uint8_t enc = encoder_read();
-    int8_t delta = (int8_t)(enc - enc_prev);
-    enc_prev = enc;
+    // riduci a detent dividendo per 4
+    int16_t det = pos;
 
-    if(delta == 0) {
-        speed_cnt = 0;
-        return param;
-    }
+    int16_t diff = det - prev_det;
+    prev_det = det;
 
-    speed_cnt++;
+    if(diff == 0) return param;
 
-    uint8_t div = 1;          // base sensitivity
-    if(speed_cnt > 20) div = 2;
-    if(speed_cnt > 50) div = 1;
+    int16_t new_param = (int16_t)param + (int16_t)diff * step;
 
-    acc += delta;
+    if(new_param < min) new_param = min;
+    if(new_param > max) new_param = max;
 
-    if(acc >= div) {
-        acc = 0;
-        if(param < max) param += step;
-    }
-    else if(acc <= -div) {
-        acc = 0;
-        if(param > min) param -= step;
-    }
-
-    if( param < min ) param = min;
-    if( param > max ) param = max;
-
-return param;
+    return (uint16_t)new_param;
 }
 
 uint8_t update_param_8(uint8_t param, uint8_t min, uint8_t max)
 {
-    static uint8_t enc_prev;
-    static int8_t acc = 0;
-    static uint16_t speed_cnt = 0;
+    int16_t pos = encoder_read();   // 0..1023
 
-    uint8_t enc = encoder_read();
-    int8_t delta = (int8_t)(enc - enc_prev);
-    enc_prev = enc;
+    // riduci a detent dividendo per 4
+    int16_t det = pos;
 
-    if(delta == 0) {
-        speed_cnt = 0;
-        return param;
-    }
+    int16_t diff = det - prev_det;
+    prev_det = det;
 
-    speed_cnt++;
+    if(diff == 0) return param;
 
-    uint8_t div = 6;          // base sensitivity
-    if(speed_cnt > 20) div = 2;
-    if(speed_cnt > 50) div = 1;
+    int8_t new_param = (int8_t)param + (int8_t)diff * step;
 
-    acc += delta;
+    if(new_param < min) new_param = min;
+    if(new_param > max) new_param = max;
 
-    if(acc >= div) {
-        acc = 0;
-        if(param < max) param += step;
-    }
-    else if(acc <= -div) {
-        acc = 0;
-        if(param > min) param -= step;
-    }
-
-    if( param < min ) param = min;
-    if( param > max ) param = max;
-
-
-return param;
+    return (uint8_t)new_param;
 }
 

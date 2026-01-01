@@ -104,8 +104,8 @@ https://fpgasoftware.intel.com/eula.
 	(port
 		(pt 0 208)
 		(input)
-		(text "keys[6..0]" (rect 0 0 40 12)(font "Arial" ))
-		(text "keys[6..0]" (rect 21 203 61 215)(font "Arial" ))
+		(text "keys[7..0]" (rect 0 0 40 12)(font "Arial" ))
+		(text "keys[7..0]" (rect 21 203 61 215)(font "Arial" ))
 		(line (pt 0 208)(pt 16 208)(line_width 3))
 	)
 	(port

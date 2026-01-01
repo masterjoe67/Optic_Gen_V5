@@ -1,4 +1,4 @@
-//#define F_CPU 16000000UL
+
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -26,59 +26,31 @@ int main(void) {
     uart_print("Inizializzo display...\r\n");
 	ILI9341_Init();
 	ILI9341_Set_Rotation(3);
-    debounce_init(0x01);   // abilita tutti i 7 pulsanti
+    debounce_init(0xFF);   // abilita tutti i 7 pulsanti
     
     leds_init();
  
     setTextFont(2);
     setTextColor(ILI9341_WHITE,ILI9341_BLACK);
 
-    // apply initial PWM settings
-    //pwm_set_mode(MODE_3PHASE);
 
-    pwm_set_carrier_hz(20000);
+
+    pwm_set_carrier_hz(50000);
     pwm_set_mod_hz(50);
     pwm_set_deadtime_ns(20);
-    pwm_set_magnitude(50);
+    pwm_set_magnitude(100);
     pwm_enable(false);
-//while(1);
+
     xpt2046_init();
-    //ts_calibrate(X_SIZE, Y_SIZE);
 
     ui_splash();
     
     ui_init();
 
-
-    uart_print("FINE.\r\n");
-
 uint16_t x, y;
     while(1) {
         ui_update();
-
-        /*if (XPT2046_TouchPressed()) {
-            //uart_print("dio can");
-           XPT2046_TouchGetCoordinates(&x, &y);
-		
-
-            uart_print("X= ");
-            uart_print_hex16(x);
-            uart_print("\r\n");
-
-            uart_print("y= ");
-            uart_print_hex16(y);
-            uart_print("\r\n");
-
-            if (x > 0 && x<320 && y>0 && y < 240)
-			{
-                fillRect(x, y, 2, 2, ILI9341_RED);
-            }
-
-
-        }*/
-        // small delay to avoid busy spin
-        _delay_ms(15);
-    
+        _delay_ms(5);
     
     }
     return 0;

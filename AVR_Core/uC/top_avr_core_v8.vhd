@@ -51,7 +51,7 @@ entity top_avr_core_v8 is port(
 --	ext_reg3	: out    std_logic_vector(15 downto 0);
 	
 	-- Debouncer
-	keys		: in    std_logic_vector(6 downto 0);
+	keys		: in    std_logic_vector(7 downto 0);
 	
 	--Encoder
 	enc_a		: in    std_logic;
@@ -600,7 +600,7 @@ io_port_out_en(6) <= ext_reg_out_en;
 	
 Debouncer:entity work.btn_debounce_mmio
     generic map(
-        N           => 7,
+        N           => 8,
         CLK_FREQ_HZ => 16000000,
         SAMPLE_MS   => 2,
         THRESH      => 10
@@ -626,7 +626,7 @@ io_port_out_en(8) <= debounch_reg_out_en;
 encoder:entity work.mmio_encoder port map(
     clk       => core_cp2,
     reset_n     => core_ireset,
-
+    set_origin => '0',
     -- encoder signals
     enc_a     => enc_a,
     enc_b     => enc_b,

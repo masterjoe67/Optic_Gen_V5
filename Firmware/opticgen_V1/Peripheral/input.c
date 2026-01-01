@@ -5,20 +5,20 @@
 #include <stdbool.h>
 
 void debounce_init(uint8_t mask) {
-    MASK_REG = mask & 0x7F;
+    MASK_REG = mask & 0xFF;
     (void)EVT_REG; // clear pending
 }
 
 uint8_t debounce_get_state(void) {
-    return DB_REG & 0x7F;
+    return DB_REG & 0xFF;
 }
 
 uint8_t debounce_get_events(void) {
-    return EVT_REG & 0x7F; // read clears pending events
+    return EVT_REG & 0xFF; // read clears pending events
 }
 
 void debounce_clear(uint8_t mask) {
-    CLR_REG = mask & 0x7F;
+    CLR_REG = mask & 0xFF;
 }
 
 int8_t encoder_get_delta(){
