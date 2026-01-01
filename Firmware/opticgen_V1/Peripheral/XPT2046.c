@@ -39,8 +39,8 @@ long map(long x, long in_min, long in_max, long out_min, long out_max) {
  
  void xpt2046_init(void)
 {
-    DDRB |= (1<<PB3) | (1<<PB4) | (1<<PB6); // MOSI, SCK, CS
-    DDRB &= ~(1<<PB5);                      // MISO input
+    DDRB |= (1<<PB3) | (1<<PB4) | (1<<PB5); // MOSI, SCK, CS
+    DDRB &= ~(1<<PB6);                      // MISO input
     DDRB &= ~(1<<PB7);                      // TP_INT input
     SW_SCK_LOW();
     SW_MOSI_LOW();

@@ -6,16 +6,16 @@
 /* =====================================================
  *  GPIO MACROS
  * ===================================================== */
-#define SW_MOSI_HIGH()  (PORTB |=  (1<<PB3))
-#define SW_MOSI_LOW()   (PORTB &= ~(1<<PB3))
+#define SW_MOSI_HIGH()  (PORTB |=  (1<<PB5))
+#define SW_MOSI_LOW()   (PORTB &= ~(1<<PB5))
 
-#define SW_SCK_HIGH()   (PORTB |=  (1<<PB4))
-#define SW_SCK_LOW()    (PORTB &= ~(1<<PB4))
+#define SW_SCK_HIGH()   (PORTB |=  (1<<PB3))
+#define SW_SCK_LOW()    (PORTB &= ~(1<<PB3))
 
-#define SW_MISO_READ()  (PINB & (1<<PB5))
+#define SW_MISO_READ()  (PINB & (1<<PB6))
 
-#define TOUCH_CS_LOW()  (PORTB &= ~(1<<PB6))
-#define TOUCH_CS_HIGH() (PORTB |=  (1<<PB6))
+#define TOUCH_CS_LOW()  (PORTB &= ~(1<<PB4))
+#define TOUCH_CS_HIGH() (PORTB |=  (1<<PB4))
 
 #define TP_INT_IN()     (PINB & (1<<PB7))
 

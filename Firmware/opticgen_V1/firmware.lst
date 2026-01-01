@@ -5214,13 +5214,13 @@ Disassembly of section .text:
 
 00005efe <xpt2046_init>:
     5efe:	87 b3       	in	r24, 0x17	; 23
-    5f00:	88 65       	ori	r24, 0x58	; 88
+    5f00:	88 63       	ori	r24, 0x38	; 56
     5f02:	87 bb       	out	0x17, r24	; 23
-    5f04:	bd 98       	cbi	0x17, 5	; 23
+    5f04:	be 98       	cbi	0x17, 6	; 23
     5f06:	bf 98       	cbi	0x17, 7	; 23
-    5f08:	c4 98       	cbi	0x18, 4	; 24
-    5f0a:	c3 98       	cbi	0x18, 3	; 24
-    5f0c:	c6 9a       	sbi	0x18, 6	; 24
+    5f08:	c3 98       	cbi	0x18, 3	; 24
+    5f0a:	c5 98       	cbi	0x18, 5	; 24
+    5f0c:	c4 9a       	sbi	0x18, 4	; 24
     5f0e:	08 95       	ret
 
 00005f10 <spi_sw_txrx>:
@@ -5229,22 +5229,22 @@ Disassembly of section .text:
     5f14:	80 e0       	ldi	r24, 0x00	; 0
     5f16:	27 ff       	sbrs	r18, 7
     5f18:	0a c0       	rjmp	.+20     	; 0x5f2e <spi_sw_txrx+0x1e>
-    5f1a:	c3 9a       	sbi	0x18, 3	; 24
+    5f1a:	c5 9a       	sbi	0x18, 5	; 24
     5f1c:	22 0f       	add	r18, r18
-    5f1e:	c4 9a       	sbi	0x18, 4	; 24
+    5f1e:	c3 9a       	sbi	0x18, 3	; 24
     5f20:	88 0f       	add	r24, r24
-    5f22:	b5 99       	sbic	0x16, 5	; 22
+    5f22:	b6 99       	sbic	0x16, 6	; 22
     5f24:	81 60       	ori	r24, 0x01	; 1
-    5f26:	c4 98       	cbi	0x18, 4	; 24
+    5f26:	c3 98       	cbi	0x18, 3	; 24
     5f28:	91 50       	subi	r25, 0x01	; 1
     5f2a:	a9 f7       	brne	.-22     	; 0x5f16 <spi_sw_txrx+0x6>
     5f2c:	08 95       	ret
-    5f2e:	c3 98       	cbi	0x18, 3	; 24
+    5f2e:	c5 98       	cbi	0x18, 5	; 24
     5f30:	f5 cf       	rjmp	.-22     	; 0x5f1c <spi_sw_txrx+0xc>
 
 00005f32 <xpt2046_read_x>:
     5f32:	cf 93       	push	r28
-    5f34:	c6 98       	cbi	0x18, 6	; 24
+    5f34:	c4 98       	cbi	0x18, 4	; 24
     5f36:	80 ed       	ldi	r24, 0xD0	; 208
     5f38:	0e 94 88 2f 	call	0x5f10	; 0x5f10 <spi_sw_txrx>
     5f3c:	80 e0       	ldi	r24, 0x00	; 0
@@ -5252,7 +5252,7 @@ Disassembly of section .text:
     5f42:	c8 2f       	mov	r28, r24
     5f44:	80 e0       	ldi	r24, 0x00	; 0
     5f46:	0e 94 88 2f 	call	0x5f10	; 0x5f10 <spi_sw_txrx>
-    5f4a:	c6 9a       	sbi	0x18, 6	; 24
+    5f4a:	c4 9a       	sbi	0x18, 4	; 24
     5f4c:	9c 2f       	mov	r25, r28
     5f4e:	23 e0       	ldi	r18, 0x03	; 3
     5f50:	96 95       	lsr	r25
@@ -5264,7 +5264,7 @@ Disassembly of section .text:
 
 00005f5c <xpt2046_read_y>:
     5f5c:	cf 93       	push	r28
-    5f5e:	c6 98       	cbi	0x18, 6	; 24
+    5f5e:	c4 98       	cbi	0x18, 4	; 24
     5f60:	80 e9       	ldi	r24, 0x90	; 144
     5f62:	0e 94 88 2f 	call	0x5f10	; 0x5f10 <spi_sw_txrx>
     5f66:	80 e0       	ldi	r24, 0x00	; 0
@@ -5272,7 +5272,7 @@ Disassembly of section .text:
     5f6c:	c8 2f       	mov	r28, r24
     5f6e:	80 e0       	ldi	r24, 0x00	; 0
     5f70:	0e 94 88 2f 	call	0x5f10	; 0x5f10 <spi_sw_txrx>
-    5f74:	c6 9a       	sbi	0x18, 6	; 24
+    5f74:	c4 9a       	sbi	0x18, 4	; 24
     5f76:	9c 2f       	mov	r25, r28
     5f78:	23 e0       	ldi	r18, 0x03	; 3
     5f7a:	96 95       	lsr	r25
@@ -5300,7 +5300,7 @@ Disassembly of section .text:
     5fa2:	df 93       	push	r29
     5fa4:	ec 01       	movw	r28, r24
     5fa6:	8b 01       	movw	r16, r22
-    5fa8:	c6 98       	cbi	0x18, 6	; 24
+    5fa8:	c4 98       	cbi	0x18, 4	; 24
     5faa:	91 2c       	mov	r9, r1
     5fac:	c1 2c       	mov	r12, r1
     5fae:	d1 2c       	mov	r13, r1
@@ -5325,7 +5325,7 @@ Disassembly of section .text:
     5fd8:	80 e1       	ldi	r24, 0x10	; 16
     5fda:	98 12       	cpse	r9, r24
     5fdc:	ed cf       	rjmp	.-38     	; 0x5fb8 <XPT2046_TouchGetCoordinates+0x32>
-    5fde:	c6 9a       	sbi	0x18, 6	; 24
+    5fde:	c4 9a       	sbi	0x18, 4	; 24
     5fe0:	e0 e1       	ldi	r30, 0x10	; 16
     5fe2:	80 e0       	ldi	r24, 0x00	; 0
     5fe4:	9e 12       	cpse	r9, r30
