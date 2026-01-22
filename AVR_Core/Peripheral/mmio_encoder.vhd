@@ -18,7 +18,7 @@ ENTITY mmio_encoder IS
 
 	 
 	 -- MMIO bus
-	  bus_addr   : in  std_logic_vector(5 downto 0);
+	  bus_addr   : in  std_logic_vector(6 downto 0);
 	  bus_wdata  : in  std_logic_vector(7 downto 0);
 	  bus_rdata  : out std_logic_vector(7 downto 0);
 	  bus_wr     : in  std_logic;

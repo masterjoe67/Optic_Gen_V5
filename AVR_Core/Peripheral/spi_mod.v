@@ -44,7 +44,7 @@ parameter SPDR_Address   = 6'h0F; // SPI I/O Data Register
    // AVR Control
    input               ireset;
    input               cp2;
-   input [5:0]         adr;
+   input [6:0]         adr;
    input [7:0]         dbus_in;
    output reg [7:0]    dbus_out;
    input               iore;

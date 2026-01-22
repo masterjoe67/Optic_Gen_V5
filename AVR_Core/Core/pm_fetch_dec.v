@@ -158,7 +158,7 @@ module pm_fetch_dec(
    input [15:0]           inst;
    //							  pm_ce            : out  std_logic;
    // I/O control
-   output [5:0]           adr;
+   output [6:0]           adr;
    output                 iore;
    output                 iowe;
    // Data memory control

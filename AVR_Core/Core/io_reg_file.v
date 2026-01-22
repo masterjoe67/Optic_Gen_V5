@@ -40,7 +40,7 @@ module io_reg_file(
    input                 cp2en;
    input                 ireset;
    // I/O i/f
-   input [5:0]           adr;
+   input [6:0]           adr;
    input                 iowe;
    input [7:0]           dbusout;
    // SREG related signals

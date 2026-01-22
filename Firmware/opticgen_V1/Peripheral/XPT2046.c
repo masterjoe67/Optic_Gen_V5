@@ -20,6 +20,24 @@
 #define READ_Y 0x90
 #endif
 
+TouchZone_t zones[NUM_ZONES] = {
+    {  0,   50, 320,  32,  0 },   // zona 0  carrier
+    {  0,   86, 320,  32,  0 },   // zona 1  modulation
+    {  0,   123, 320,  32, 0 },  // zona 2  magnitude
+    {  0,   160, 320,  32, 0 },  // zona 3  deadtime
+    {  0,   202, 160,  32, 0 },  // zona 4  mode
+    {  170, 202, 150,  32, 0 },  // zona 5  output
+    {  290,   0,  30,  40, 0 },  // zona 6  ok
+    {   30,   0,  30,  40, 0 },  // zona 7  about
+};
+
+TouchZone_t zones_osc[NUM_ZONES_OSC] = {
+    {  263,   1, 48,  48,  0 },   // zona 0  trigger
+    {  263,  54, 48,  48,  0 },
+    {  263,  108, 48,  48,  0 },
+    {   30,   0, 30,  40,  0 },
+};
+
 static void delay_nus(int cnt)
 {
 	int i, us;
@@ -194,27 +212,9 @@ bool XPT2046_TouchPressed() {
 	
 }
 
-typedef struct {
-    uint16_t x;
-    uint16_t y;
-    uint16_t w;
-    uint16_t h;
-    uint8_t  pressed;   // feedback booleano
-} TouchZone_t;
 
-#define NUM_ZONES 7
 
-TouchZone_t zones[NUM_ZONES] = {
-    {  0,   50, 320,  32,  0 },   // zona 0  carrier
-    {  0,   86, 320,  32,  0 },   // zona 1  modulation
-    {  0,   123, 320,  32, 0 },  // zona 2  magnitude
-    {  0,   160, 320,  32, 0 },  // zona 2  deadtime
-    {  0,   202, 160,  32, 0 },  // zona 3  mode
-    {  170, 202, 150,  32, 0 },  // zona 4  output
-    {  290, 0, 30,  40, 0    },  // zona 5  ok
-};
-
-static uint8_t point_in_zone(uint16_t x, uint16_t y, TouchZone_t *z)
+static int point_in_zone(uint16_t x, uint16_t y, TouchZone_t *z)
 {
     return (x >= z->x) &&
            (x <  (z->x + z->w)) &&
@@ -222,16 +222,16 @@ static uint8_t point_in_zone(uint16_t x, uint16_t y, TouchZone_t *z)
            (y <  (z->y + z->h));
 }
 
-int8_t touch_process_zones(uint16_t x, uint16_t y, uint8_t touch_down)
+/*int touch_process_zones(uint16_t x, uint16_t y, uint8_t touch_down)
 {
-    static uint8_t last_touch = 0;
+    static int last_touch = 0;
 
-    int8_t hit = -1;
+    int hit = -1;
 
 
     if (touch_down && !last_touch) {
         // fronte di salita: nuovo tocco
-        for (uint8_t i = 0; i < NUM_ZONES; i++) {
+        for (int i = 0; i < NUM_ZONES; i++) {
             if (point_in_zone(x, y, &zones[i])) {
                 zones[i].pressed = 1;
                 hit = i;
@@ -242,7 +242,35 @@ int8_t touch_process_zones(uint16_t x, uint16_t y, uint8_t touch_down)
 
     if (!touch_down) {
         // rilascio → reset feedback
-        for (uint8_t i = 0; i < NUM_ZONES; i++)
+        for (int i = 0; i < NUM_ZONES; i++)
+            zones[i].pressed = 0;
+    }
+
+    last_touch = touch_down;
+    return hit;   // -1 = nessuna zona
+}*/
+
+int touch_process_zones(uint16_t x, uint16_t y, uint8_t touch_down, TouchZone_t *zon, int n)
+{
+    static int last_touch = 0;
+
+    int hit = -1;
+
+
+    if (touch_down && !last_touch) {
+        // fronte di salita: nuovo tocco
+        for (int i = 0; i < n; i++) {
+            if (point_in_zone(x, y, &zon[i])) {
+                zon[i].pressed = 1;
+                hit = i;
+                break;
+            }
+        }
+    }
+
+    if (!touch_down) {
+        // rilascio → reset feedback
+        for (int i = 0; i < NUM_ZONES; i++)
             zones[i].pressed = 0;
     }
 

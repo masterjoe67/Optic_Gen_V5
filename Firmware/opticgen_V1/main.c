@@ -47,7 +47,6 @@ int main(void) {
     
     ui_init();
 
-uint16_t x, y;
     while(1) {
         ui_update();
         _delay_ms(5);

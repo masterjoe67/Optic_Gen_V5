@@ -12,6 +12,7 @@
 #include "logo/nerkia.h"
 #include "logo/nerk.h"
 #include "logo/k_icon.h"
+#include "scope.h"
 
 #define MIN_CARRIER_HZ 150U
 #define MAX_CARRIER_HZ 50000U
@@ -22,7 +23,7 @@
 #define MIN_DEAD_NS 0U
 #define MAX_DEAD_NS 2000U
 
-#define pwm_f_clk 50000000U
+#define pwm_f_clk 200000000U
 
 #define CAR_VALUE_CUR_Y 50  //60
 #define MOD_VALUE_CUR_Y 86
@@ -60,6 +61,40 @@ uint8_t cursor_on = 0;      // stato ON/OFF del lampeggio
 uint8_t cursor_blink = 0;   
 uint8_t refresh = 0;
 bool flash_on  = false;
+volatile uint16_t tick_count = 0;
+char carrier_buf[16] = "                ";
+char mod_buf[16] = "                ";
+char mag_buf[16] = "                ";
+char dea_buf[16] = "                ";
+
+volatile uint16_t refresh_count = 0;
+/* Timer0 Compare Match ISR */
+ISR(TIMER0_OVF_vect)
+{
+    tick_count++;
+    refresh_count++;
+
+    // ---- toggle refresh ogni 500 tick ----
+    if (refresh_count >= 500) {
+        refresh_count = 0;
+        refresh ^= 1;
+        //PORTA ^= (1 << 5);
+    }
+
+
+    if (tick_count >= 1500) {   // 2000 × 0.5 ms = 1 s
+        tick_count = 0;
+
+        if(flash_on){
+            PORTA ^= (1 << 4);
+            
+  
+        }else PORTA &= ~(1 << 4);
+        
+        cursor_on ^= 1;
+    }
+    
+}
 
 static void draw_static_layout(void)
 {
@@ -98,16 +133,11 @@ static void draw_static_layout(void)
     ILI9341_Print("Modulation Freq:");
 
     ILI9341_set_cursor(12, MAG_VALUE_CUR_Y + 8);
-    ILI9341_Print("Magnitude % :");
+    ILI9341_Print("Magnitude:");
 
     ILI9341_set_cursor(12, DEA_VALUE_CUR_Y + 8);
     ILI9341_Print("Dead Time:");
 }
-
-char carrier_buf[16] = "                ";
-char mod_buf[16] = "                ";
-char mag_buf[16] = "                ";
-char dea_buf[16] = "                ";
 
 static void blink_cursor(char *buffer, int y_pos, int digit){
     int16_t x = 140;
@@ -143,6 +173,16 @@ void uint32_to_str3(uint32_t val, char *buf) {
     }
     buf[3] = '\0';
 }
+
+uint8_t digits_u32(uint32_t v)
+{
+    if (v < 10)       return 1;
+    if (v < 100)      return 2;
+    if (v < 1000)     return 3;
+    if (v < 10000)    return 4;
+    return 5;   // fino a 50000
+}
+
 
 static void render_values(bool force)
 {
@@ -247,20 +287,6 @@ static void render_values(bool force)
 
 }
 
-
-volatile uint16_t tick_count = 0;
-
-
-uint8_t digits_u32(uint32_t v)
-{
-    if (v < 10)       return 1;
-    if (v < 100)      return 2;
-    if (v < 1000)     return 3;
-    if (v < 10000)    return 4;
-    return 5;   // fino a 50000
-}
-
-
 static void highlight_selected_field(field_t f)
 {
     // draw border around selected field
@@ -295,12 +321,12 @@ static void highlight_selected_field(field_t f)
     // Mag box
     if(f == FIELD_MAG) {
         setTextColor(ILI9341_GREENYELLOW, 0x0000);
-        ILI9341_set_cursor(12, MAG_VALUE_CUR_Y + 8); ILI9341_Print("Modulation Freq:");
+        ILI9341_set_cursor(12, MAG_VALUE_CUR_Y + 8); ILI9341_Print("Magnitude:");
         if(digit_pos > digits_u32(magnitude)) digit_pos = digits_u32(magnitude);
         cursor_blink = 1;
     } else {
         setTextColor(0xFFFF, 0x0000);
-        ILI9341_set_cursor(12, MAG_VALUE_CUR_Y + 8); ILI9341_Print("Modulation Freq:");
+        ILI9341_set_cursor(12, MAG_VALUE_CUR_Y + 8); ILI9341_Print("Magnitude:");
     }
     // Dead box
     if(f == FIELD_DEAD) {
@@ -338,35 +364,6 @@ static void apply_limits_and_update(void)
     pwm_set_deadtime_ns(deadNs);
     pwm_set_mode(currentMode);
     pwm_enable(outputEnabled);
-}
-
-volatile uint16_t refresh_count = 0;
-/* Timer0 Compare Match ISR */
-ISR(TIMER0_OVF_vect)
-{
-    tick_count++;
-    refresh_count++;
-
-    // ---- toggle refresh ogni 500 tick ----
-    if (refresh_count >= 500) {
-        refresh_count = 0;
-        refresh ^= 1;
-        //PORTA ^= (1 << 5);
-    }
-
-
-    if (tick_count >= 1500) {   // 2000 × 0.5 ms = 1 s
-        tick_count = 0;
-
-        if(flash_on){
-            PORTA ^= (1 << 4);
-            
-  
-        }else PORTA &= ~(1 << 4);
-        
-        cursor_on ^= 1;
-    }
-    
 }
 
 void ui_init(void)
@@ -419,10 +416,9 @@ void ui_splash(void)
     }
 }
 
-
 void ui_update(void)
 {
-    uint8_t ev = debounce_get_events();
+    int ev = debounce_get_events();
 
     uint16_t tx, ty;
     uint8_t  td;
@@ -431,19 +427,13 @@ void ui_update(void)
 
     td = XPT2046_TouchGetCoordinates(&tx, &ty);   // 1 = tocco valido
 
-
-    
-    if(ev) {
-        uart_print("Event = ");
-        uart_print_hex(ev);
-        uart_print("\r\n");
-    }
-int8_t z = touch_process_zones(tx, ty, td);
+int z = touch_process_zones(tx, ty, td, zones, NUM_ZONES);
 
 if (z >= 0) {
     if(!ev){
          ev = 1 << z;
     }
+    if(z == 7) ev <<= 1;
 }
 
 if (field_locked) {
@@ -451,7 +441,7 @@ if (field_locked) {
 }
 
 if (outputEnabled) {
-    ev &= (1 << 5) | (1 << 2) | (1 << 6);   // solo ON/OFF
+    ev &= (1 << 5) | (1 << 2) | (1 << 6) | (1 << 8);   // solo ON/OFF
 }
 
     if(ev) {
@@ -540,6 +530,14 @@ if (outputEnabled) {
             digit_pos = (digit_pos + 1) % 5; // dead in ns, allow up to 10k
         }
         // blink LED or draw indicator near encoder
+    }
+
+    if (ev & (1<<8))  {
+        //ui_splash();
+        scope_main();
+        draw_static_layout();
+        render_values(true);
+        highlight_selected_field(FIELD_NONE);
     }
 
     // encoder rotation changes selected digit

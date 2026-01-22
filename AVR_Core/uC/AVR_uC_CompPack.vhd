@@ -7,6 +7,7 @@
 
 library IEEE;
 use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
 use WORK.AVRuCPackage.all;
 
 package AVR_uC_CompPack is
@@ -16,7 +17,7 @@ component pport is generic(PPortNum : natural);
 	                   -- AVR Control
                ireset     : in std_logic;
                cp2	      : in std_logic;
-               adr        : in std_logic_vector(5 downto 0);
+               adr        : in std_logic_vector(6 downto 0);
                dbus_in    : in std_logic_vector(7 downto 0);
                dbus_out   : out std_logic_vector(7 downto 0);
                iore       : in std_logic;
@@ -46,7 +47,7 @@ component spwm_generator_mmio is port (
         rst_n     : in  std_logic;
 
         -- MMIO
-        bus_addr  : in  std_logic_vector(5 downto 0);
+        bus_addr  : in  std_logic_vector(6 downto 0);
         bus_wr    : in  std_logic;
         bus_rd    : in  std_logic;
         bus_wdata : in  std_logic_vector(7 downto 0);
@@ -72,7 +73,7 @@ component mmio_encoder is
     enc_b     : in  std_logic;
 
     -- bus interface
-    bus_addr  : in  std_logic_vector(5 downto 0);
+    bus_addr  : in  std_logic_vector(6 downto 0);
     bus_wdata : in  std_logic_vector(7 downto 0);
     bus_rdata : out std_logic_vector(7 downto 0);
     bus_rd    : in  std_logic;
@@ -95,7 +96,7 @@ component btn_debounce_mmio is
 
         raw_in     : in  std_logic_vector(N-1 downto 0);
 
-        bus_addr   : in  std_logic_vector(5 downto 0);
+        bus_addr   : in  std_logic_vector(6 downto 0);
         bus_read   : in  std_logic;
         bus_write  : in  std_logic;
         bus_wdata  : in  std_logic_vector(7 downto 0);
@@ -138,7 +139,7 @@ component Timer_Counter is port(
 							 tmr_cp2en      : in  std_logic;
 							 stopped_mode   : in  std_logic; -- ??
 						     tmr_running    : in  std_logic; -- ??
-                             adr            : in  std_logic_vector(5 downto 0);
+                             adr            : in  std_logic_vector(6 downto 0);
                              dbus_in        : in  std_logic_vector(7 downto 0);
                              dbus_out       : out std_logic_vector(7 downto 0);
                              iore           : in  std_logic;
@@ -173,29 +174,7 @@ end component;
 
 
 ----*************** UART ***************************
---component uart is port(
---	                   -- AVR Control
---               ireset     : in std_logic;
---               cp2	      : in std_logic;
---               adr        : in std_logic_vector(5 downto 0);
---               dbus_in    : in std_logic_vector(7 downto 0);
---               dbus_out   : out std_logic_vector(7 downto 0);
---               iore       : in std_logic;
---               iowe       : in std_logic;
---               out_en     : out std_logic; 
---
---                       --UART
---               rxd        : in std_logic;
---               rx_en      : out std_logic;
---               txd        : out std_logic;
---               tx_en      : out std_logic;
---
---                       --IRQ
---               txcirq     : out std_logic;
---               txc_irqack : in std_logic;
---               udreirq    : out std_logic;
---			   rxcirq     : out std_logic);
---end component;
+
 
 -- Core itself
 component AVR_Core is port(
@@ -212,7 +191,7 @@ component AVR_Core is port(
                         pc          : out std_logic_vector (15 downto 0);   
                         inst        : in  std_logic_vector (15 downto 0);
                         -- I/O control
-                        adr         : out std_logic_vector (5 downto 0); 	
+                        adr         : out std_logic_vector (6 downto 0); 	
                         iore        : out std_logic;                       
                         iowe        : out std_logic;						
                         -- Data memory control
@@ -332,7 +311,7 @@ component uart is port(
 	                -- AVR Control
                     ireset     : in  std_logic;
                     cp2	       : in  std_logic;
-                    adr        : in  std_logic_vector(5 downto 0);
+                    adr        : in  std_logic_vector(6 downto 0);
                     dbus_in    : in  std_logic_vector(7 downto 0);
                     dbus_out   : out std_logic_vector(7 downto 0);
                     iore       : in  std_logic;
@@ -353,48 +332,68 @@ end component;
 
 
 
--- SMBus
 
---component SMBusMod is port(
---	                    -- AVR Control
---                        ireset       : in  std_logic;
---                        cp2	         : in  std_logic;
---                        adr          : in  std_logic_vector(5 downto 0);
---                        dbus_in      : in  std_logic_vector(7 downto 0);
---                        dbus_out     : out std_logic_vector(7 downto 0);
---                        iore         : in  std_logic;
---                        iowe         : in  std_logic;
---                        out_en       : out std_logic; 
---                        -- Slave IRQ
---                        twiirq       : out std_logic;
---                        -- Master IRQ
---			            msmbirq      : out std_logic;
---			            -- "Off state" timer IRQ
---                        offstirq     : out std_logic; 
---                        offstirq_ack : in  std_logic; 
---			            -- TRI control and data for the slave channel
---			            sdain	     : in  std_logic;
---			            sdaout	     : out std_logic;
---			            sdaen        : out std_logic;
---			            sclin	     : in  std_logic;
---			            sclout	     : out std_logic;
---			            sclen        : out std_logic;
---						-- TRI control and data for the master channel
---			            msdain	     : in  std_logic;
---			            msdaout	     : out std_logic;
---			            msdaen       : out std_logic;
---			            msclin	     : in  std_logic;
---			            msclout	     : out std_logic;
---			            msclen       : out std_logic
---					   );
---			   
---end component;
 
 
 component FrqDiv is port(
                       clk_in     : in  std_logic;
 			          clk_out    : out std_logic
 		              );
+end component;
+
+
+component adc128s022_reader is
+    port (
+        clk     : in  std_logic;
+        rst_n   : in  std_logic;
+
+        -- SPI ADC
+        sclk    : out std_logic;
+        cs_n    : out std_logic;
+        mosi    : out std_logic;
+        miso    : in  std_logic;
+
+        -- Uscite dati
+        ch0   : out unsigned(11 downto 0);
+        ch1   : out unsigned(11 downto 0);
+        ch2   : out unsigned(11 downto 0)
+
+    );
+end component;
+
+component dp_ram_1024x12 is
+    port (
+        clk_wr   : in  std_logic;
+        addr_wr  : in  unsigned(9 downto 0);
+        data_in  : in  unsigned(11 downto 0);
+        wr_en    : in  std_logic;
+
+        clk_rd   : in  std_logic;
+        addr_rd  : in  unsigned(9 downto 0);
+        data_out : out unsigned(11 downto 0)
+    );
+end component;
+
+
+
+component oscilloscope_top is
+    port(
+        clk     : in  std_logic;
+        rst_n   : in  std_logic;
+
+        -- ADC
+        sclk    : out std_logic;
+        cs_n    : out std_logic;
+        miso    : in  std_logic;
+
+        -- MMIO
+        iore        : in  std_logic;
+        mmio_addr   : in  std_logic_vector(7 downto 0);
+        mmio_wdata  : in  std_logic_vector(7 downto 0);
+        mmio_we     : in  std_logic;
+        mmio_rdata  : out std_logic_vector(7 downto 0);
+        out_en      : out std_logic
+    );
 end component;
 
 

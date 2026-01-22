@@ -44,11 +44,11 @@ entity top_avr_core_v8 is port(
 	TDO    : out   std_logic;
 	TRSTn  : in    std_logic; -- Optional JTAG input
 	
---	--EXT Reg
---	ext_reg0	: out    std_logic_vector(15 downto 0);
---	ext_reg1	: out    std_logic_vector(15 downto 0);
---	ext_reg2	: out    std_logic_vector(15 downto 0);
---	ext_reg3	: out    std_logic_vector(15 downto 0);
+   --ADC SPI
+   ADC_sclk	    	: out   std_logic;
+	ADC_cs_n			: out   std_logic;
+	ADC_miso		   : in    std_logic;
+	ADC_mosi  		: out std_logic;
 	
 	-- Debouncer
 	keys		: in    std_logic_vector(7 downto 0);
@@ -78,7 +78,7 @@ signal core_pc   : std_logic_vector (15 downto 0); -- PROM address
 signal core_inst : std_logic_vector (15 downto 0); -- PROM data
 
 -- I/O registers
-signal core_adr  : std_logic_vector (5 downto 0);
+signal core_adr  : std_logic_vector (6 downto 0);
 signal core_iore : std_logic;                    
 signal core_iowe : std_logic;
 
@@ -140,6 +140,10 @@ signal debounch_reg_out_en   : std_logic;
 --Encoder Reg
 signal encoder_reg_dbusout  : std_logic_vector (7 downto 0);
 signal encoder_reg_out_en   : std_logic;
+
+--Scope
+signal scope_reg_dbusout  : std_logic_vector (7 downto 0);
+signal scope_reg_out_en   : std_logic;
 
 -- ###############################################################################################################
 
@@ -281,7 +285,7 @@ component spi_mod
     cp2         : in  std_logic;
 
     -- Bus interno
-    adr         : in  std_logic_vector(5 downto 0);
+    adr         : in  std_logic_vector(6 downto 0);
     dbus_in     : in  std_logic_vector(7 downto 0);
     dbus_out    : out std_logic_vector(7 downto 0);
     iore        : in  std_logic;
@@ -392,43 +396,44 @@ io_port_out(5) <= spi_dbusout;
 io_port_out_en(5) <= spi_out_en;
 		  
 AVR_Core_Inst:component AVR_Core port map(
-                                          --Clock and reset
-                                          cp2      => core_cp2,
-										  cp2en    => vcc,
-                                          ireset   => core_ireset,
-										  -- JTAG OCD support
-					                      valid_instr => open,
-						                  insert_nop  => gnd,
-						                  block_irq   => gnd,
-						                  change_flow => open,
-				                          -- Program Memory
-                                          pc       => core_pc,
-                                          inst     => core_inst,
-										  -- I/O control
-                                          adr      => core_adr,
-                                          iore     => core_iore,
-                                          iowe     => core_iowe,
-					                      -- Data memory control
-                                          ramadr   => core_ramadr,
-                                          ramre    => core_ramre,
-                                          ramwe    => core_ramwe,
-                                          cpuwait  => core_cpuwait,
-                      					  -- Data paths
-                                          dbusin   => core_dbusin,
-                                          dbusout  => core_dbusout,
-			                              -- Interrupts
-                                          irqlines => core_irqlines, 
-                                          irqack   => core_irqack,
-                                          irqackad => core_irqackad, 
-										  --Sleep Control
-                                          sleepi   => sleepi,
-                                          irqok	   => irqok,
-                                          globint  => globint,
-                                          --Watchdog
-                                          wdri	   => core_wdri);
-										  
+	 --Clock and reset
+		cp2      => core_cp2,
+		cp2en    => vcc,
+		ireset   => core_ireset,
+	-- JTAG OCD support
+		valid_instr => open,
+		insert_nop  => gnd,
+		block_irq   => gnd,
+		change_flow => open,
+	-- Program Memory
+		pc       => core_pc,
+		inst     => core_inst,
+	-- I/O control
+		adr      => core_adr,
+		iore     => core_iore,
+		iowe     => core_iowe,
+	-- Data memory control
+		ramadr   => core_ramadr,
+		ramre    => core_ramre,
+		ramwe    => core_ramwe,
+		cpuwait  => core_cpuwait,
+	-- Data paths
+		dbusin   => core_dbusin,
+		dbusout  => core_dbusout,
+	-- Interrupts
+		irqlines => core_irqlines, 
+		irqack   => core_irqack,
+		irqackad => core_irqackad, 
+	--Sleep Control
+		sleepi   => sleepi,
+		irqok	   => irqok,
+		globint  => globint,
+		--Watchdog
+		wdri	   => core_wdri
+);
+	  
 
-RAM_Data_Register:component RAMDataReg port map(	                   
+	RAM_Data_Register:component RAMDataReg port map(	                   
                ireset      => core_ireset,
                cp2	       => clk4M, -- clk,
                cpuwait     => core_cpuwait,
@@ -519,58 +524,42 @@ PORTB_Not_Impl:if not CImplPORTB generate
 end generate; 
 
 -- ******************  PORTC **************************		
-PORTC_Impl:if CImplPORTC generate
-PORTC_COMP:component pport 
-	generic map (PPortNum => 2)
-	port map(
-	                   -- AVR Control
-               ireset     => core_ireset,
-               cp2	      => clk4M, -- clk, 
-               adr        => core_adr,
-               dbus_in    => core_dbusout,
-               dbus_out   => portc_dbusout,
-               iore       => core_iore,
-               iowe       => core_iowe,
-               out_en     => portc_out_en,
-			            -- External connection
-			   portx      => PortCReg,
-			   ddrx       => DDRCReg,
-			   pinx       => portc);
-
--- PORTC connection to the external multiplexer
-io_port_out(7) <= portc_dbusout;
-io_port_out_en(7) <= portc_out_en;
-
--- Tri-state control for PORTB
-PortCZCtrl:for i in portc'range generate
-portb(i) <= PortCReg(i) when DDRCReg(i)='1' else 'Z'; 	
-end generate;
-
-end generate;
-
-PORTC_Not_Impl:if not CImplPORTC generate
- portc <= (others => 'Z');	
-end generate; 
+--PORTC_Impl:if CImplPORTC generate
+--PORTC_COMP:component pport 
+--	generic map (PPortNum => 2)
+--	port map(
+--	                   -- AVR Control
+--               ireset     => core_ireset,
+--               cp2	      => clk4M, -- clk, 
+--               adr        => core_adr,
+--               dbus_in    => core_dbusout,
+--               dbus_out   => portc_dbusout,
+--               iore       => core_iore,
+--               iowe       => core_iowe,
+--               out_en     => portc_out_en,
+--			            -- External connection
+--			   portx      => PortCReg,
+--			   ddrx       => DDRCReg,
+--			   pinx       => portc);
+--
+---- PORTC connection to the external multiplexer
+--io_port_out(7) <= portc_dbusout;
+--io_port_out_en(7) <= portc_out_en;
+--
+---- Tri-state control for PORTB
+--PortCZCtrl:for i in portc'range generate
+--portb(i) <= PortCReg(i) when DDRCReg(i)='1' else 'Z'; 	
+--end generate;
+--
+--end generate;
+--
+--PORTC_Not_Impl:if not CImplPORTC generate
+-- portc <= (others => 'Z');	
+--end generate; 
 	
 -- ************************************************
 
--- External register
---EXT_reg_impl:entity work.mmio_regs_16bit_direct port map(
---	clk           => core_cp2,             -- clock del core
---	rst           => core_ireset,             -- reset sincrono
---	core_write    => core_iowe,
---	core_read     => core_iore,
---	core_addr     => core_adr,
---	core_data_in  => core_dbusout,
---	core_data_out => ext_reg_dbusout,
---	out_en		  => ext_reg_out_en,
---	ext_reg0      =>ext_reg0,
---	ext_reg1      =>ext_reg1,
---	ext_reg2      =>ext_reg2,
---	ext_reg3      =>ext_reg3
---	);
---	io_port_out(6) <= ext_reg_dbusout;
---	io_port_out_en(6) <= ext_reg_out_en;
+
 PWM_impl:entity work.spwm_generator_mmio port map(
         -- clock
         clk_sys   => core_cp2,
@@ -624,7 +613,7 @@ io_port_out(8) <= debounch_reg_dbusout;
 io_port_out_en(8) <= debounch_reg_out_en;
 
 encoder:entity work.mmio_encoder port map(
-    clk       => core_cp2,
+    clk      	 => core_cp2,
     reset_n     => core_ireset,
     set_origin => '0',
     -- encoder signals
@@ -642,7 +631,9 @@ encoder:entity work.mmio_encoder port map(
 	);
 	io_port_out(9) <= encoder_reg_dbusout;
 	io_port_out_en(9) <= encoder_reg_out_en;
+	
 
+	
 
 
 -- Unused IRQ lines
@@ -912,17 +903,17 @@ slv_outs(1).out_en 	<= gnd;
 
 -- Memory read mux
 MemRdMux_inst:component MemRdMux port map(
-	                    slv_outs  =>  slv_outs,
-						ram_sel   =>  ram_sel,    -- Data RAM selection(optional input)
-	                    ram_dout  =>  mem_ram_dbus_out,            -- Data memory output (From RAM)
-						dout      =>  mem_mux_out -- Data output (To the core and other bus masters)
-						);
+	slv_outs  =>  slv_outs,
+	ram_sel   =>  ram_sel,    -- Data RAM selection(optional input)
+	ram_dout  =>  mem_ram_dbus_out,            -- Data memory output (From RAM)
+	dout      =>  mem_mux_out -- Data output (To the core and other bus masters)
+	);
 
 
 
 -- Address decoder
 RAMAdrDcd_Inst:component RAMAdrDcd port map(
-                         ramadr    => mem_ramadr, 
+                       ramadr    => mem_ramadr, 
 		                 ramre     => mem_ramre,
 		                 ramwe     => mem_ramwe,
 		                 -- Memory mapped I/O i/f
@@ -931,19 +922,31 @@ RAMAdrDcd_Inst:component RAMAdrDcd port map(
 	                     -- Data memory i/f
 		                 ram_we    => ram_ramwe,
 		                 ram_ce    => ram_ce,
-						 ram_sel   => ram_sel
+						     ram_sel   => ram_sel
 		                );
 
+scope_inst : entity work.oscilloscope_top 
+    port map(
+        clk     => core_cp2,
+        rst_n   => core_ireset,
 
--- Given for the purpose of test only
---RAM_Inst:component RAM generic map(RAMSize => CRAMSize)
---	               port map(
---                        cp2     => cp2,
---  	                    ramadr  => mem_ramadr(LOG2(CRAMSize)-1 downto 0),
---		                din     => mem_ram_dbus_in,
---		                dout    => mem_ram_dbus_out,
---						ramwe   => ram_ramwe 
---					    );							   
+        -- ADC
+        sclk    => ADC_sclk,
+        cs_n    => ADC_cs_n,
+        miso    => ADC_miso,
+		  mosi    => ADC_mosi,
+
+        -- MMIO
+        iore        => core_iore,
+        mmio_addr   => core_adr,
+        mmio_wdata  => core_dbusout,
+        mmio_we     => core_iowe,
+        mmio_rdata  => scope_reg_dbusout,
+        out_en      => scope_reg_out_en
+    );
+	io_port_out(7) <= scope_reg_dbusout;
+	io_port_out_en(7) <= scope_reg_out_en;
+							   
 							   
 	
 	

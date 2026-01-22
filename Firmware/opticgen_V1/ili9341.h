@@ -90,7 +90,7 @@ extern unsigned int X_SIZE;
 extern unsigned int Y_SIZE;
 
 void spi_init(void);
-void ILI9341_Init();
+void ILI9341_Init(void);
 void ILI9341_Set_Rotation(unsigned char rotation);
 void ILI9341_Set_Address(uint16_t X1, uint16_t Y1, uint16_t X2, uint16_t Y2);
 void ILI9341_Fill_Screen(unsigned int color);
@@ -105,10 +105,12 @@ void ILI9341_set_text_color(uint16_t color, uint16_t bgcolor);
 void ILI9341_set_text_size(uint8_t size);
 //void ILI9341_putc(char c);
 //void ILI9341_print(const char *str);
-void ILI9341_PrintInt(int val);
-void ILI9341_PrintPercent(int val);
-void ILI9341_PrintHz(int val);
-void ILI9341_PrintKHz(float val);
+//void ILI9341_PrintInt(int val);
+//void ILI9341_PrintPercent(int val);
+//void ILI9341_PrintHz(int val);
+//void ILI9341_PrintKHz(float val);
+
+void drawPixel(uint16_t x, uint16_t y, uint16_t color);
 
 void fillScreen(uint16_t color);
 void setTextColor(uint16_t c, uint16_t b);

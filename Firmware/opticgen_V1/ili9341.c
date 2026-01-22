@@ -218,11 +218,11 @@ void ILI9341_Draw_Line(unsigned int color, unsigned int x1, unsigned int y1, uns
 	{
 		if (steep)
 		{
-			ILI9341_Draw_Pixel(y1, x1, color);
+			drawPixel(y1, x1, color);
 		}
 		else
 		{
-			ILI9341_Draw_Pixel(x1, y1, color);
+			drawPixel(x1, y1, color);
 		}
 		err -= dy;
 		if (err < 0)
@@ -1065,11 +1065,6 @@ int drawChar(unsigned int uniCode, int x, int y, int font)
   int pX      = 0;
   int pY      = y;
   byte line = 0;
-
-  byte tl = textcolor;
-  byte th = textcolor >> 8;
-  byte bl = textbgcolor;
-  byte bh = textbgcolor >> 8;
 
 #ifdef LOAD_FONT2 // chop out 962 bytes of code if we do not need it
   if (font == 2) {

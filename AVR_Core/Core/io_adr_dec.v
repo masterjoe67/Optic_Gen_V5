@@ -14,7 +14,7 @@ module io_adr_dec #(
                     parameter pc22b = 0
 		    ) 
 		    (
-   		     input wire [5:0]  adr,
+   		     input wire [6:0]  adr,
    		     input wire        iore,
    		     input wire [7:0]  dbusin_ext,
    		     output reg [7:0]  dbusin_int,

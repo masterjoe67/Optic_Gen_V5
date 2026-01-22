@@ -36,7 +36,7 @@ module avr_core #(
    		  //   pm_ce	   : out  std_logic,
    		  
    		  // I/O control
-   		  output wire [5:0]	      adr,
+   		  output wire [6:0]	      adr,
    		  output wire		      iore,
    		  output wire		      iowe,
    		  // Data memory control
@@ -392,7 +392,7 @@ module avr_core #(
                 .pc22b     (pc22b)
 	        ) 
    io_dec_Inst(
-               .adr        (adr), 
+          .adr        (adr), 
 	       .iore       (iore), 
 	       .dbusin_int (dbusin_int), 
 	       .dbusin_ext (dbusin), 

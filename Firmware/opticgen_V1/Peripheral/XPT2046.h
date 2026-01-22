@@ -52,10 +52,26 @@
 #define XPT2046_MIN_RAW_Y 400
 #define XPT2046_MAX_RAW_Y 3800
 
+typedef struct {
+    uint16_t x;
+    uint16_t y;
+    uint16_t w;
+    uint16_t h;
+    uint8_t  pressed;   // feedback booleano
+} TouchZone_t;
+
+#define NUM_ZONES 8
+#define NUM_ZONES_OSC 4
+
+/* dichiarazioni (extern) */
+extern TouchZone_t zones[NUM_ZONES];
+extern TouchZone_t zones_osc[NUM_ZONES_OSC];
+
 // call before initializing any SPI devices
 void xpt2046_init(void);
 extern bool XPT2046_TouchPressed(void);
 extern bool XPT2046_TouchGetCoordinates(uint16_t* x, uint16_t* y);
-
+//int touch_process_zones(uint16_t x, uint16_t y, uint8_t touch_down);
+int touch_process_zones(uint16_t x, uint16_t y, uint8_t touch_down, TouchZone_t *zon, int n);
 
 #endif

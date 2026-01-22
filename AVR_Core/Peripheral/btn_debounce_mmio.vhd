@@ -17,7 +17,7 @@ entity btn_debounce_mmio is
 
         raw_in     : in  std_logic_vector(N-1 downto 0);
 
-        bus_addr   : in  std_logic_vector(5 downto 0);
+        bus_addr   : in  std_logic_vector(6 downto 0);
         bus_read   : in  std_logic;
         bus_write  : in  std_logic;
         bus_wdata  : in  std_logic_vector(7 downto 0);

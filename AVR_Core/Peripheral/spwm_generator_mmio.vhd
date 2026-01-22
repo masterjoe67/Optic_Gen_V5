@@ -11,7 +11,7 @@ entity spwm_generator_mmio is
         rst_n     : in  std_logic;
 
         -- MMIO interface
-        bus_addr  : in  std_logic_vector(5 downto 0);
+        bus_addr  : in  std_logic_vector(6 downto 0);
         bus_wr    : in  std_logic;
         bus_rd    : in  std_logic;
         bus_wdata : in  std_logic_vector(7 downto 0);
@@ -75,7 +75,9 @@ architecture rtl of spwm_generator_mmio is
 	 signal tri_L_B   : std_logic;
 	 signal tri_H_C   : std_logic;
 	 signal tri_L_C   : std_logic;
-
+	 
+	 signal pwm_x   : std_logic;
+	 signal pwm_y   : std_logic;
 
 component top_spwm_dynamic port(
     clk				: in  std_logic;              -- 200 MHz
@@ -147,6 +149,7 @@ component top_spwm_selector port (
     out_L2 : out std_logic
 );
 end component;
+
 
 begin
     ----------------------------------------------------------------
@@ -361,35 +364,6 @@ PWM_mux_inst : component top_spwm_selector port map(
     out_H2 => CH,
     out_L2 => CL
 );
-
-    
-
-    ----------------------------------------------------------------
-    -- selezione modalità
-    ----------------------------------------------------------------
---    process(all)
---    begin
---        case mode_s2 is
---            when "00" =>  -- trifase
---                pwmA_i <= pwmA;
---                pwmB_i <= pwmB;
---                pwmC_i <= pwmC;
---            when "01" =>  -- mono mezzo ponte
---                pwmA_i <= pwmA;
---                pwmB_i <= '0';
---                pwmC_i <= '0';
---            when "10" =>  -- mono ponte intero
---                pwmA_i <= pwmA;
---                pwmB_i <= not pwmA;
---                pwmC_i <= '0';
---            when others =>
---                pwmA_i <= '0';
---                pwmB_i <= '0';
---                pwmC_i <= '0';
---        end case;
---    end process;
-
-  
 
  
 
