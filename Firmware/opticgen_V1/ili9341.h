@@ -129,7 +129,7 @@ void drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color);
 void drawCircleHelper( int16_t x0, int16_t y0, int16_t r, uint8_t cornername, uint16_t color);
 void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
 void setTextFont(uint8_t f);
-
+void spiWrite16(uint16_t data, int16_t count);
 //void ILI9341_Draw_String(unsigned int x, unsigned int y, unsigned int color, unsigned int phone, char *str, unsigned char size);
 uint16_t ILI9341_RGB565(uint8_t r, uint8_t g, uint8_t b);
 

@@ -34,6 +34,44 @@ end entity;
 
 architecture rtl of oscilloscope_top is
 
+	 -- Tipo enumerativo per Time/Div
+	
+
+-- Array costante che mappa Time/Div su reg_base_time
+
+	type time_div_map_t is array (0 to 19) of unsigned(31 downto 0);
+
+constant time_div_map : time_div_map_t := (
+    to_unsigned(0, 32),        -- 0: 1us
+    to_unsigned(1, 32),        -- 1: 2us
+    to_unsigned(4, 32),        -- 2: 5us
+    to_unsigned(9, 32),        -- 3: 10us
+    to_unsigned(19, 32),       -- 4: 20us
+    to_unsigned(49, 32),       -- 5: 50us
+    to_unsigned(99, 32),       -- 6: 100us
+    to_unsigned(199, 32),      -- 7: 200us
+    to_unsigned(499, 32),      -- 8: 500us
+    to_unsigned(999, 32),      -- 9: 1ms
+    to_unsigned(1999, 32),     -- 10: 2ms
+    to_unsigned(4999, 32),     -- 11: 5ms
+    to_unsigned(9999, 32),     -- 12: 10ms
+    to_unsigned(19999, 32),    -- 13: 20ms
+    to_unsigned(49999, 32),    -- 14: 50ms
+    to_unsigned(99999, 32),    -- 15: 100ms
+    to_unsigned(199999, 32),   -- 16: 200ms
+    to_unsigned(499999, 32),   -- 17: 500ms
+    to_unsigned(999999, 32),   -- 18: 1s
+    to_unsigned(1999999, 32)   -- 19: 2s
+);
+
+
+
+	--signal reg_time_div_sel : time_div_t := TD_1us;
+	signal base_time_reload : unsigned(31 downto 0);
+	signal next_base_time_reload : unsigned(31 downto 0);
+	-- Time/Div index (da MMIO, 0..19)
+	signal reg_time_div_sel : integer range 0 to 19 := 0;
+
     ------------------------------------------------------------------
     -- Costanti di sistema
     ------------------------------------------------------------------
@@ -152,6 +190,8 @@ architecture rtl of oscilloscope_top is
             return a - b;
         end if;
     end function;
+	 
+
 
 
     ------------------------------------------------------------------
@@ -228,6 +268,11 @@ begin
     auto_timeout_hit <= '1'
         when (mode = "00") and (auto_cnt >= AUTO_TIMEOUT)
         else '0';
+		  
+	 
+	 -- latch combinatorio del nuovo Time/Div
+
+	next_base_time_reload <= time_div_map(reg_time_div_sel);
 
     ------------------------------------------------------------------
     -- Rearm command latch (1 ciclo)
@@ -303,15 +348,25 @@ begin
     -- Tick generator
     -- Genera tick_en a frequenza impostata da reg_base_time
     ------------------------------------------------------------------
-    process(clk, rst_n)
+    process(clk,rst_n)
     begin
         if rst_n = '0' then
             tick          <= '0';
             tick_en       <= '0';
-            base_time_cnt <= (others => '0');
+            base_time_cnt <= (others=>'0');
+				base_time_reload <= (others => '0');
         elsif rising_edge(clk) then
-            if base_time_cnt >= reg_base_time then
-                base_time_cnt <= (others => '0');
+				 -- aggiorna la base tempo solo se siamo in IDLE o HOLD
+				  if state = IDLE or state = HOLD then
+            if base_time_reload /= time_div_map(reg_time_div_sel) then
+                base_time_reload <= time_div_map(reg_time_div_sel);
+                base_time_cnt    <= (others => '0'); -- reset contatore al cambio
+            end if;
+        end if;
+				  
+				-- generatore tick
+            if base_time_cnt >= base_time_reload then
+                base_time_cnt <= (others=>'0');
                 tick          <= '1';
                 tick_en       <= '1';
             else
@@ -424,24 +479,9 @@ begin
                 reg_index_int <= reg_index_int + 1;
             end if;
 
-            -- Scrittura BASE (32 bit)
+            -- Scrittura BASE TIME
             if mmio_we = '1' and base_reg_sel = '1' then
-                if base_bytecnt = "000" then
-                    base_shift(7 downto 0) <= unsigned(mmio_wdata);
-                elsif base_bytecnt = "001" then
-                    base_shift(15 downto 8) <= unsigned(mmio_wdata);
-                elsif base_bytecnt = "010" then
-                    base_shift(23 downto 16) <= unsigned(mmio_wdata);
-                elsif base_bytecnt = "011" then
-                    base_shift(31 downto 24) <= unsigned(mmio_wdata);
-                    reg_base_time <= base_shift;
-                end if;
-
-                if base_bytecnt = "011" then
-                    base_bytecnt <= (others => '0');
-                else
-                    base_bytecnt <= base_bytecnt + 1;
-                end if;
+                reg_time_div_sel <= to_integer(unsigned(mmio_wdata(4 downto 0)));
             end if;
 
             -- Scrittura livello trigger (12 bit)

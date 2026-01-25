@@ -28,6 +28,12 @@ void debounce_clear(uint8_t mask);
 
 uint16_t encoder_read(void);
 
+uint32_t update_param_32(uint32_t param, uint32_t min, uint32_t max, uint32_t step);
+
+uint16_t update_param_16(uint16_t param, uint16_t min, uint16_t max, uint16_t step);
+
+uint8_t update_param_8(uint8_t param, uint8_t min, uint8_t max, uint8_t step);
+
 
 // encoder movement: returns -1,0,+1 for rotation since last poll
 int8_t encoder_get_delta(void);

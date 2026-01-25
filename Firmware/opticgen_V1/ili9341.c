@@ -88,7 +88,7 @@ void spi_init(void) {
 ** Function name:           spiWrite16
 ** Descriptions:            Delay based assembler loop for fast SPI write
 ***************************************************************************************/
-static inline void spiWrite16(uint16_t data, int16_t count)
+void spiWrite16(uint16_t data, int16_t count)
 {
 	if (count <= 0) return;
 

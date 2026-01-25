@@ -36,3 +36,71 @@ uint16_t encoder_read(void) {
     return val;
 }
 
+static int16_t prev_det = 0;
+
+uint32_t update_param_32(uint32_t param, uint32_t min, uint32_t max, uint32_t step)
+{
+    int16_t pos = encoder_read();   // 0..1023
+
+    // riduci a detent dividendo per 4
+    int16_t det = pos;
+
+    int16_t diff = det - prev_det;
+    prev_det = det;
+
+    if(diff == 0) return param;
+
+    int32_t new_param = (int32_t)param + (int32_t)diff * step;
+
+    if(new_param < min) new_param = min;
+    if(new_param > max) new_param = max;
+
+    return (uint32_t)new_param;
+}
+
+
+
+uint16_t update_param_16(uint16_t param, uint16_t min, uint16_t max, uint16_t step)
+{
+    int16_t pos = encoder_read();   // 0..1023
+
+    // riduci a detent dividendo per 4
+    int16_t det = pos;
+
+    int16_t diff = det - prev_det;
+    prev_det = det;
+
+    if(diff == 0) return param;
+
+    int16_t new_param = (int16_t)param + (int16_t)diff * step;
+
+    if(new_param < min) new_param = min;
+    if(new_param > max) new_param = max;
+
+    return (uint16_t)new_param;
+}
+
+uint8_t update_param_8(uint8_t param, uint8_t min, uint8_t max, uint8_t step)
+{
+    int16_t pos = encoder_read();   // 0..1023
+
+    // riduci a detent dividendo per 4
+    int16_t det = pos;
+
+    int16_t diff = det - prev_det;
+    prev_det = det;
+
+    if (diff > 0)
+        diff = 1;
+    else if (diff < 0)
+        diff = -1;
+    else
+        return param;
+
+    int8_t new_param = (int8_t)param + (int8_t)diff * step;
+
+    if(new_param < min) new_param = min;
+    if(new_param > max) new_param = max;
+
+    return (uint8_t)new_param;
+}

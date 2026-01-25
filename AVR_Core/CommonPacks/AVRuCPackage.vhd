@@ -167,7 +167,9 @@ constant PPortAdrArray : PPortAdrTblArray_Type := ((PORTA_Address,DDRA_Address,P
 																	(PORTC_Address,DDRC_Address,PINC_Address)); -- PORTC
 
 -- ***************************************************************************************
-											   
+
+
+	
 -- Analog to digital converter
 --constant ADCL_Address  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#04#);
 --constant ADCH_Address  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16#05#);

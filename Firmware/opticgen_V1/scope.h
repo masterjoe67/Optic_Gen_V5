@@ -50,16 +50,18 @@ typedef enum {
     TRIG_SLOPE_FALLING = 1
 } trig_slope_t;
 
+
+
 // Funzioni di inizializzazione
-void osc_init_base_time(uint32_t base_time);
+//void osc_init_base_time(uint32_t base_time);
 void osc_init_trigger(uint16_t trig_level, trigger_mode_t mode,
                       trig_channel_t chan, uint8_t edge_rising);
 
 // Funzione per acquisizione dati (gestisce pre/post trigger)
-void osc_acquire_samples(void);
+//void osc_acquire_samples(void);
 
 // Funzione di visualizzazione
-void osc_draw_samples(void);
+//void osc_draw_samples(void);
 
 void scope_main(void);
 

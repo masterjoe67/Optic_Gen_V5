@@ -551,14 +551,14 @@ if (outputEnabled) {
             modHz = update_param_32(modHz, MIN_MOD_HZ, MAX_MOD_HZ, step);
         } else if (selectedField == FIELD_MAG) {
             lastMagnitude = magnitude;
-            magnitude = update_param_8(magnitude, 0, 100);
+            magnitude = update_param_8(magnitude, 0, 100, step);
             if(magnitude != lastMagnitude){
                 if(magnitude < MIN_MAG) magnitude = MIN_MAG;
                 if(magnitude > MAX_MAG) magnitude = MAX_MAG;
                 pwm_set_magnitude(magnitude);
             }
         } else if (selectedField == FIELD_DEAD) {
-            deadNs = update_param_16(deadNs, 0, 2000);
+            deadNs = update_param_16(deadNs, 0, 2000, step);
         }
         render_values(false);
     }
@@ -569,67 +569,5 @@ if (outputEnabled) {
 }
 
 
-static int16_t prev_det = 0;
 
-uint32_t update_param_32(uint32_t param, uint32_t min, uint32_t max, uint32_t step)
-{
-    int16_t pos = encoder_read();   // 0..1023
-
-    // riduci a detent dividendo per 4
-    int16_t det = pos;
-
-    int16_t diff = det - prev_det;
-    prev_det = det;
-
-    if(diff == 0) return param;
-
-    int32_t new_param = (int32_t)param + (int32_t)diff * step;
-
-    if(new_param < min) new_param = min;
-    if(new_param > max) new_param = max;
-
-    return (uint32_t)new_param;
-}
-
-
-
-uint16_t update_param_16(uint16_t param, uint16_t min, uint16_t max)
-{
-    int16_t pos = encoder_read();   // 0..1023
-
-    // riduci a detent dividendo per 4
-    int16_t det = pos;
-
-    int16_t diff = det - prev_det;
-    prev_det = det;
-
-    if(diff == 0) return param;
-
-    int16_t new_param = (int16_t)param + (int16_t)diff * step;
-
-    if(new_param < min) new_param = min;
-    if(new_param > max) new_param = max;
-
-    return (uint16_t)new_param;
-}
-
-uint8_t update_param_8(uint8_t param, uint8_t min, uint8_t max)
-{
-    int16_t pos = encoder_read();   // 0..1023
-
-    // riduci a detent dividendo per 4
-    int16_t det = pos;
-
-    int16_t diff = det - prev_det;
-    prev_det = det;
-
-    if(diff == 0) return param;
-
-    int8_t new_param = (int8_t)param + (int8_t)diff * step;
-
-    if(new_param < min) new_param = min;
-    if(new_param > max) new_param = max;
-
-    return (uint8_t)new_param;
-}
 

@@ -4,6 +4,7 @@
 #include "ili9341.h"
 #include "scope.h"
 #include "Peripheral/XPT2046.h"
+#include "Peripheral/input.h"
 
 // offset verticale per le tre tracce
 #define CH0_Y  60
@@ -13,6 +14,12 @@
 #define PRE_TRIGGER       150
 #define POST_TRIGGER      150
 #define BUFFER_TOTAL      (PRE_TRIGGER + POST_TRIGGER)
+
+// Parametri reticolo
+#define GRID_SPACING 30     // distanza tra linee
+#define DOT_SPACING 4       // distanza tra puntini
+#define COLOR_GRID ILI9341_WHITE
+
 uint8_t buffer_a[BUFFER_TOTAL];
 uint8_t buffer_b[BUFFER_TOTAL];
 uint8_t buffer_c[BUFFER_TOTAL];
@@ -20,17 +27,44 @@ uint8_t old_buffer_a[300];
 uint8_t old_buffer_b[300];
 uint8_t old_buffer_c[300];
 
+uint8_t time_div_sel = 10;
+uint8_t prev_time_div_sel = 0xFF; // valore precedente (inesistente all'inizio)
+
 bool freeze = false;
 
 static trigger_mode_t trigger_mode = TRIG_MODE_AUTO;
 static trig_slope_t trigger_slope = TRIG_SLOPE_RISING;
 
-void set_base_time(uint32_t value)
+static const char *time_div_str[20] = {
+    "1uS",
+    "2uS",
+    "5uS",
+    "10uS",
+    "20uS",
+    "50uS",
+    "100uS",
+    "200uS",
+    "500uS",
+    "1mS",
+    "2mS",
+    "5mS",
+    "10mS",
+    "20mS",
+    "50mS",
+    "100mS",
+    "200mS",
+    "500mS",
+    "1S",
+    "2S"
+};
+
+void set_base_time(uint8_t sel)
 {
-    REG_BASETIME = (uint8_t)(value & 0xFF);          // byte 0  LSB
+    REG_BASETIME = sel;   // 0..19
+    /*REG_BASETIME = (uint8_t)(value & 0xFF);          // byte 0  LSB
     REG_BASETIME = (uint8_t)((value >> 8) & 0xFF);   // byte 1
     REG_BASETIME = (uint8_t)((value >> 16) & 0xFF);  // byte 2
-    REG_BASETIME = (uint8_t)((value >> 24) & 0xFF);  // byte 3  MSB
+    REG_BASETIME = (uint8_t)((value >> 24) & 0xFF);  // byte 3  MSB*/
 }
 
 void set_trigger_level(uint16_t level12)
@@ -122,11 +156,6 @@ void osc_init_trigger(uint16_t trig_level, trigger_mode_t mode,
 }
 
 
-
-
-
-
-
 // funzione per disegnare la traccia sul TFT
 void draw_trace(uint8_t *buffer, uint8_t *old_buffer, uint16_t length, uint16_t y_offset, uint16_t color)
 {
@@ -152,32 +181,6 @@ void osc_wait_ready(void)
         
     }
 }
-
-void osc_read_triggered_frame(
-    uint8_t *buf_a,
-    uint8_t *buf_b,
-    uint8_t *buf_c
-)
-{
-    /* 1️⃣ attende che il core sia in HOLD (trigger o AUTO) */
-    osc_wait_ready();
-
-    /* 2️⃣ posiziona indice di lettura all’inizio frame */
-    REG_INDEX = 0;
-
-    /* 3️⃣ lettura sequenziale */
-    for (uint16_t i = 0; i < 300; i++) {
-
-        /* ORDINE OBBLIGATORIO */
-        buf_b[i] = REG_CHB;   // stesso indice
-        buf_c[i] = REG_CHC;   // stesso indice
-        buf_a[i] = REG_CHA;   // AVANZA INDICE
-    }
-
-    /* 4️⃣ rearm (NORMAL / SINGLE) */
-    REG_TRIG = 0x01;        // bit rearm
-}
-
 
 
 void rearm(){
@@ -231,27 +234,38 @@ static inline void osc_arm_readout(void)
     REG_INDEX = 0;
 }
 
-/*void osc_read_triggered(uint8_t *a, uint8_t *b, uint8_t *c)
+void draw_time_div()
 {
-    
-    if (trigger_mode == TRIG_MODE_SINGLE & freeze) {
-        return;     
-    }
-    if (trigger_mode == TRIG_MODE_SINGLE | trigger_mode == TRIG_MODE_AUTO) {
-        osc_wait_ready();      // SOLO in single
-        freeze = true;
-    }
+    if (time_div_sel > 19)
+        return;
+    ILI9341_set_cursor(210, 215);
+    fillRect(210, 215, 40, 16, 0x0000);
+    ILI9341_Print(time_div_str[time_div_sel]);
+    /*uart_print("time_div_sel ");    
+    uart_print_hex(time_div_sel);
+    uart_print("\r\n");*/
+}
 
-    osc_arm_readout();       // indice = inizio pre-trigger
 
+void drawDottedGridFast(int x0, int y0, int x1, int y1, int gridSpacing, int dotSpacing, uint16_t color) {
 
-    for (int i = 0; i < 300; i++) {   // 150 pre + 150 post
-        b[i] = REG_CHB;
-        c[i] = REG_CHC;
-        a[i] = REG_CHA;   // QUESTO AVANZA L’INDICE
+  // orizzontali puntinate
+  for (int y = y0; y <= y1; y += gridSpacing) {
+    for (int x = x0; x <= x1; x += dotSpacing) {
+      drawPixel(x, y, color);
     }
-    if(trigger_mode == TRIG_MODE_NORMAL)  REG_TRIG = 0x01;        // bit rearm
-}*/
+  }
+
+  // verticali puntinate
+  for (int x = x0; x <= x1; x += gridSpacing) {
+    for (int y = y0; y <= y1; y += dotSpacing) {
+      drawPixel(x, y, color);
+    }
+  }
+
+  draw_time_div();
+}
+
 
 void osc_read_triggered(uint8_t *a, uint8_t *b, uint8_t *c)
 {
@@ -291,12 +305,15 @@ REG_TRIG = 0x01;
 void oscilloscope_init(void)
 {
     fillScreen(0x0000);
+    setTextSize(1);
+    setTextColor(ILI9341_WHITE, 0x0000);
     drawRoundRect(0, 1, 255, 239, 6, ILI9341_WHITE);
     drawRoundRect(263, 1, 48, 48, 6, ILI9341_YELLOW);
     drawRoundRect(263, 54, 48, 48, 6, ILI9341_YELLOW);
     drawRoundRect(263, 108, 48, 48, 6, ILI9341_YELLOW);
     drawRoundRect(263, 162, 48, 48, 6, ILI9341_YELLOW);
     drawRoundRect(263, 216, 48, 24, 6, ILI9341_YELLOW);
+    drawDottedGridFast(6, 0, 254, 238, 40, 4, ILI9341_WHITE);
     draw_trig_mode_btn();
 }
 
@@ -309,7 +326,7 @@ void scope_main(void)
     oscilloscope_init();
     
 
-    set_base_time(4000UL);
+    set_base_time(12);
     set_trigger_level(100);   // metà scala
 
     set_trigger_mode(TRIG_MODE_AUTO, TRIG_SLOPE_RISING);
@@ -317,10 +334,11 @@ void scope_main(void)
     
     while(1)
     {
+        drawDottedGridFast(6, 0, 254, 238, 40, 4, ILI9341_WHITE);
        osc_read_triggered(buffer_a, buffer_b, buffer_c);
-       draw_trace(buffer_a, old_buffer_a, 254, CH0_Y, ILI9341_GREEN);
-       draw_trace(buffer_b, old_buffer_b, 254, CH0_Y, ILI9341_RED);
-       draw_trace(buffer_c, old_buffer_c, 254, CH0_Y, ILI9341_BLUE);
+       draw_trace(buffer_a, old_buffer_a, 255, CH0_Y, ILI9341_GREEN);
+       draw_trace(buffer_b, old_buffer_b, 255, CH0_Y, ILI9341_RED);
+       draw_trace(buffer_c, old_buffer_c, 255, CH0_Y, ILI9341_BLUE);
            
 
 
@@ -348,12 +366,19 @@ void scope_main(void)
             }
         }
 
+        uint8_t new_sel = update_param_8(time_div_sel, 0, 16, 1);
+        if (new_sel != prev_time_div_sel) {
+            // Aggiorna il registro solo se il valore è cambiato
+            REG_BASETIME = new_sel;
+            prev_time_div_sel = new_sel;
+            time_div_sel = new_sel; // aggiorna il valore corrente
+        }
         /*if(z == 1) return;   // 1 = tocco valido
         
         if(z == 0){
             ToggleTriggerMode();
         }*/
-        _delay_ms(50);
+        //_delay_ms(50);
         
 
     }
