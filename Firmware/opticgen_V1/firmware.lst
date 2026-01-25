@@ -4407,7 +4407,7 @@ Disassembly of section .text:
     58da:	f0 e0       	ldi	r31, 0x00	; 0
     58dc:	e0 e0       	ldi	r30, 0x00	; 0
     58de:	d6 cf       	rjmp	.-84     	; 0x588c <ILI9341_write+0x28>
-    58e0:	90 91 00 01 	lds	r25, 0x0100	; 0x800100 <__DATA_REGION_ORIGIN__>
+    58e0:	90 91 00 01 	lds	r25, 0x0100	; 0x800100 <__data_start>
     58e4:	99 23       	and	r25, r25
     58e6:	f1 f0       	breq	.+60     	; 0x5924 <ILI9341_write+0xc0>
     58e8:	6e 9f       	mul	r22, r30

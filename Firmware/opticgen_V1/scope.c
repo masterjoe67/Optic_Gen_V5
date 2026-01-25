@@ -274,11 +274,8 @@ void osc_read_triggered(uint8_t *a, uint8_t *b, uint8_t *c)
         return;
     }
 
-    /* NORMAL e SINGLE aspettano il trigger */
-   /* if (trigger_mode == TRIG_MODE_SINGLE || trigger_mode == TRIG_MODE_NORMAL) {
-        
-    }*/
-osc_wait_ready();
+ 
+    osc_wait_ready();
     /* AUTO NON aspetta mai */
 
     /* blocca lo stato in SINGLE */
@@ -295,10 +292,6 @@ osc_wait_ready();
         a[i] = REG_CHA;
     }
 REG_TRIG = 0x01; 
-    /* NORMAL: riarmo SOLO dopo aver finito */
-    if (trigger_mode == TRIG_MODE_NORMAL) {
-          // write-only, no |= !
-    }
 }
 
 
