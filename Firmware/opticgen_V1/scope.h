@@ -18,7 +18,11 @@
 #define PRE_TRIGGER       150
 #define POST_TRIGGER      150
 #define BUFFER_TOTAL      (PRE_TRIGGER + POST_TRIGGER)
-#define READY_BIT 1
+#define READY_BIT         1
+#define BUFFER_SIZE       4096
+#define DISPLAY_SAMPLES   255
+#define PAN_LIMIT         140   
+#define PAN_STEP          4
 
 // Buffer interni
 extern uint8_t buffer_a[BUFFER_TOTAL];
@@ -49,6 +53,11 @@ typedef enum {
     TRIG_SLOPE_RISING  = 0,
     TRIG_SLOPE_FALLING = 1
 } trig_slope_t;
+
+typedef enum {
+    T_DIV  = 0,
+    PAN = 1
+} tdiv_pan_t;
 
 
 

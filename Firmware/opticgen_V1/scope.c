@@ -29,11 +29,16 @@ uint8_t old_buffer_c[300];
 
 uint8_t time_div_sel = 10;
 uint8_t prev_time_div_sel = 0xFF; // valore precedente (inesistente all'inizio)
-
+int16_t view_offset = 0;
+int16_t prev_view_offset = 0xFFFF;
+int16_t prev_det_sig = 0;
 bool freeze = false;
+bool pan_flag = false;
+bool time_div_sel_changed = true;
 
 static trigger_mode_t trigger_mode = TRIG_MODE_AUTO;
 static trig_slope_t trigger_slope = TRIG_SLOPE_RISING;
+static tdiv_pan_t   mode_tdiv_pan = T_DIV;
 
 static const char *time_div_str[20] = {
     "1uS",
@@ -61,10 +66,6 @@ static const char *time_div_str[20] = {
 void set_base_time(uint8_t sel)
 {
     REG_BASETIME = sel;   // 0..19
-    /*REG_BASETIME = (uint8_t)(value & 0xFF);          // byte 0  LSB
-    REG_BASETIME = (uint8_t)((value >> 8) & 0xFF);   // byte 1
-    REG_BASETIME = (uint8_t)((value >> 16) & 0xFF);  // byte 2
-    REG_BASETIME = (uint8_t)((value >> 24) & 0xFF);  // byte 3  MSB*/
 }
 
 void set_trigger_level(uint16_t level12)
@@ -78,24 +79,20 @@ void set_trigger_level(uint16_t level12)
 }
 
 void draw_trig_mode_btn(){
+    setTextSize(1);
+    setTextColor(ILI9341_WHITE, 0x0000);
     switch (trigger_mode) {
         case TRIG_MODE_SINGLE:
-            setTextSize(1);
-            setTextColor(ILI9341_WHITE, 0x0000);
             ILI9341_set_cursor(270, 24);
             ILI9341_Print("SING");
             break;
 
         case TRIG_MODE_NORMAL:
-            setTextSize(1);
-            setTextColor(ILI9341_WHITE, 0x0000);
             ILI9341_set_cursor(270, 24);
             ILI9341_Print("NORM");
             break;
 
         case TRIG_MODE_AUTO:
-            setTextSize(1);
-            setTextColor(ILI9341_WHITE, 0x0000);
             ILI9341_set_cursor(270, 24);
             ILI9341_Print("AUTO");
             break;
@@ -114,6 +111,23 @@ void draw_trig_slope_btn(){
         case TRIG_SLOPE_FALLING:
             ILI9341_Draw_Line(ILI9341_CYAN, 276, 75, 286, 75);
             ILI9341_Draw_Line(ILI9341_CYAN, 286, 75, 300, 95);
+
+            break;
+
+    }
+}
+
+void draw_pan_tdiv_btn(){
+    fillRect(266, 165, 42, 42, 0x0000 );
+    switch (mode_tdiv_pan) {
+        case T_DIV:
+            ILI9341_set_cursor(270, 190);
+            ILI9341_Print("T/Div");
+            break;
+
+        case PAN:
+            ILI9341_set_cursor(270, 190);
+            ILI9341_Print("PAN ");
 
             break;
 
@@ -195,10 +209,12 @@ void ToggleTriggerMode(void)
     switch (trigger_mode) {
         case TRIG_MODE_SINGLE:
             trigger_mode = TRIG_MODE_NORMAL;
+            mode_tdiv_pan = T_DIV;
             break;
 
         case TRIG_MODE_NORMAL:
             trigger_mode = TRIG_MODE_AUTO;
+            mode_tdiv_pan = T_DIV;
             break;
 
         case TRIG_MODE_AUTO:
@@ -208,6 +224,7 @@ void ToggleTriggerMode(void)
     }
 
     set_trigger_mode(trigger_mode, trigger_slope);
+    draw_pan_tdiv_btn();
     
 
 }
@@ -229,6 +246,24 @@ void ToggleTriggerSlope(void)
     set_trigger_mode(trigger_mode, trigger_slope);
 }
 
+void ToggleTDivPan(void)
+{
+    switch (mode_tdiv_pan) {
+        case T_DIV:
+            mode_tdiv_pan = PAN;
+            break;
+
+        case PAN:
+        default:
+            mode_tdiv_pan = T_DIV;
+            break;
+
+    }
+
+    draw_pan_tdiv_btn();
+}
+
+
 static inline void osc_arm_readout(void)
 {
     REG_INDEX = 0;
@@ -238,16 +273,47 @@ void draw_time_div()
 {
     if (time_div_sel > 19)
         return;
-    ILI9341_set_cursor(210, 215);
-    fillRect(210, 215, 40, 16, 0x0000);
+    ILI9341_set_cursor(209, 215);
+    
+    if(time_div_sel_changed){
+       fillRect(209, 215, 37, 16, 0x0000); 
+       time_div_sel_changed = false;
+    }
     ILI9341_Print(time_div_str[time_div_sel]);
     /*uart_print("time_div_sel ");    
     uart_print_hex(time_div_sel);
     uart_print("\r\n");*/
 }
 
+Point_t old_a = { 0, 0 };
+Point_t old_b = { 0, 0 };
+Point_t old_c = { 0, 0 };
+void drawPanTrack(){
+
+    int16_t offset = 125 + view_offset;
+
+    Point_t a = { offset, 2 };
+    Point_t b = { offset + 10, 2 };
+    Point_t c = { offset + 5, 17 };
+    
+    if(pan_flag){
+        ILI9341_FillTriangle(old_a, old_b, old_c, ILI9341_BLACK);
+        old_a = a;
+        old_b = b;
+        old_c = c;
+    }
+    ILI9341_FillTriangle(a, b, c, ILI9341_WHITE);
+}
+
+void drawScreenValue(){
+    draw_time_div();
+    //drawPanTrack();
+}
+
 
 void drawDottedGridFast(int x0, int y0, int x1, int y1, int gridSpacing, int dotSpacing, uint16_t color) {
+
+    drawPanTrack();
 
   // orizzontali puntinate
   for (int y = y0; y <= y1; y += gridSpacing) {
@@ -263,36 +329,69 @@ void drawDottedGridFast(int x0, int y0, int x1, int y1, int gridSpacing, int dot
     }
   }
 
-  draw_time_div();
+  drawScreenValue();
 }
+
+
 
 
 void osc_read_triggered(uint8_t *a, uint8_t *b, uint8_t *c)
 {
-    /* SINGLE: se già congelato, non fare nulla */
+    /* SINGLE: se già congelato, NON riarmare acquisizione */
     if (trigger_mode == TRIG_MODE_SINGLE && freeze) {
-        return;
+        osc_arm_readout();   // solo lettura memoria
+    } else {
+        osc_wait_ready();
+
+        if (trigger_mode == TRIG_MODE_SINGLE) {
+            freeze = true;
+            prev_det_sig= encoder_read();
+        }
+
+        osc_arm_readout();   // acquisizione + lettura
     }
 
- 
-    osc_wait_ready();
-    /* AUTO NON aspetta mai */
-
-    /* blocca lo stato in SINGLE */
-    if (trigger_mode == TRIG_MODE_SINGLE) {
-        freeze = true;
-    }
-
-    /* prepara la lettura (buffer congelato!) */
-    osc_arm_readout();
-
-    for (int i = 0; i < 300; i++) {
+    for (int i = 0; i < 255; i++) {
         b[i] = REG_CHB;
         c[i] = REG_CHC;
         a[i] = REG_CHA;
     }
-REG_TRIG = 0x01; 
+
+    /* riarmo trigger SOLO se non in HOLD */
+    if (!(trigger_mode == TRIG_MODE_SINGLE)) {
+        REG_TRIG = 0x01;
+    }
 }
+
+int16_t update_view_offset(
+    int16_t param,
+    int16_t min,
+    int16_t max,
+    int16_t step
+)
+{
+    int16_t det  = encoder_read();
+    int16_t diff = det - prev_det_sig;
+    prev_det_sig = det;
+
+    /* nessun movimento */
+    if (diff == 0)
+        return param;
+
+    /* filtro solo per glitch grossi (wrap / rumore) */
+    if (diff > 20 || diff < -20)
+        return param;
+
+    /* calcolo SEMPRE in 32 bit */
+    int32_t tmp = (int32_t)param + (int32_t)diff * (int32_t)step;
+
+    /* clamp corretto */
+    if (tmp < min) tmp = min;
+    if (tmp > max) tmp = max;
+
+    return (int16_t)tmp;
+}
+
 
 
 void oscilloscope_init(void)
@@ -306,8 +405,33 @@ void oscilloscope_init(void)
     drawRoundRect(263, 108, 48, 48, 6, ILI9341_YELLOW);
     drawRoundRect(263, 162, 48, 48, 6, ILI9341_YELLOW);
     drawRoundRect(263, 216, 48, 24, 6, ILI9341_YELLOW);
-    drawDottedGridFast(6, 0, 254, 238, 40, 4, ILI9341_WHITE);
+    drawDottedGridFast(8, 0, 254, 238, 40, 4, ILI9341_WHITE);
     draw_trig_mode_btn();
+    draw_pan_tdiv_btn();
+}
+
+static inline void osc_write_view_offset(int16_t offset)
+{
+    REG_BASETIME = 0xFF;                         // escape
+    REG_BASETIME = 0x01;                         // comando: view_offset
+    REG_BASETIME = (uint8_t)(offset & 0xFF);     // LSB
+    REG_BASETIME = (uint8_t)(offset >> 8);       // MSB
+    REG_BASETIME = 0xFF;
+    /*uart_print("offset_l");
+    uart_print_hex((uint8_t)(offset & 0xFF));
+    uart_print("\r\n");
+    uart_print("offset_h");
+    uart_print_hex((uint8_t)(offset >> 8));
+    uart_print("\r\n");*/
+}
+
+
+void acquire_and_draw(){
+    drawDottedGridFast(8, 0, 254, 238, 40, 4, ILI9341_WHITE);
+    osc_read_triggered(buffer_a, buffer_b, buffer_c);
+    draw_trace(buffer_a, old_buffer_a, 255, CH0_Y, ILI9341_GREEN);
+    draw_trace(buffer_b, old_buffer_b, 255, CH0_Y, ILI9341_RED);
+    draw_trace(buffer_c, old_buffer_c, 255, CH0_Y, ILI9341_BLUE);
 }
 
 // --- main loop ---
@@ -315,30 +439,15 @@ void scope_main(void)
 {
     uint16_t tx, ty;
     uint8_t  td;
-
     oscilloscope_init();
-    
-
     set_base_time(12);
     set_trigger_level(100);   // metà scala
-
     set_trigger_mode(TRIG_MODE_AUTO, TRIG_SLOPE_RISING);
-    //set_trigger_mode(TRIG_MODE_SINGLE, TRIG_SLOPE_FALLING);
-    
     while(1)
     {
-        drawDottedGridFast(6, 0, 254, 238, 40, 4, ILI9341_WHITE);
-       osc_read_triggered(buffer_a, buffer_b, buffer_c);
-       draw_trace(buffer_a, old_buffer_a, 255, CH0_Y, ILI9341_GREEN);
-       draw_trace(buffer_b, old_buffer_b, 255, CH0_Y, ILI9341_RED);
-       draw_trace(buffer_c, old_buffer_c, 255, CH0_Y, ILI9341_BLUE);
-           
-
-
+        pan_flag = false;
         td = XPT2046_TouchGetCoordinates(&tx, &ty);   // 1 = tocco valido
-
         int z = touch_process_zones(tx, ty, td, zones_osc, NUM_ZONES_OSC);
-
         if(z >= 0){
             switch (z)
             {
@@ -352,6 +461,12 @@ void scope_main(void)
                 rearm();
                 break;
             case 3:
+                //Pan - T/Div
+                ToggleTDivPan();
+                break;
+            case 4:
+                break;
+            case 5:
                 return;
                 break;
             default:
@@ -359,14 +474,52 @@ void scope_main(void)
             }
         }
 
-        uint8_t new_sel = update_param_8(time_div_sel, 0, 16, 1);
+uint8_t new_sel;
+int16_t new_pan;
+    switch (mode_tdiv_pan) {
+        case T_DIV:
+            new_sel = update_param_8(time_div_sel, 0, 16, 1);
+            if (new_sel != prev_time_div_sel) {
+                // Aggiorna il registro solo se il valore è cambiato
+                REG_BASETIME = new_sel;
+                prev_time_div_sel = new_sel;
+                time_div_sel = new_sel; // aggiorna il valore corrente
+                time_div_sel_changed = true;
+            }
+            break;
+
+        case PAN:
+            new_pan = update_view_offset(view_offset , -PAN_LIMIT, +PAN_LIMIT, PAN_STEP);
+            if (new_pan != prev_view_offset) {
+                
+                // Aggiorna il registro solo se il valore è cambiato
+                osc_write_view_offset(new_pan);
+                osc_arm_readout(); 
+                prev_view_offset = new_pan;
+                view_offset = new_pan; // aggiorna il valore corrente
+                pan_flag = true;
+                /*uart_print("offset ");
+                uart_print_int16(view_offset);
+                uart_print("\r\n");*/
+            }
+            break;
+        default:
+            
+            break;
+
+    }
+    acquire_and_draw();
+  
+
+        
+        /*uint8_t new_sel = update_param_8(time_div_sel, 0, 16, 1);
         if (new_sel != prev_time_div_sel) {
             // Aggiorna il registro solo se il valore è cambiato
             REG_BASETIME = new_sel;
             prev_time_div_sel = new_sel;
             time_div_sel = new_sel; // aggiorna il valore corrente
         }
-        /*if(z == 1) return;   // 1 = tocco valido
+        if(z == 1) return;   // 1 = tocco valido
         
         if(z == 0){
             ToggleTriggerMode();

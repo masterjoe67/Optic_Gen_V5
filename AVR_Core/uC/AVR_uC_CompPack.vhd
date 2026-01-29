@@ -374,6 +374,19 @@ component dp_ram_1024x12 is
     );
 end component;
 
+component dp_ram_4096x12 is
+    port (
+        clk_wr   : in  std_logic;
+        addr_wr  : in  unsigned(11 downto 0);
+        data_in  : in  unsigned(11 downto 0);
+        wr_en    : in  std_logic;
+
+        clk_rd   : in  std_logic;
+        addr_rd  : in  unsigned(11 downto 0);
+        data_out : out unsigned(11 downto 0)
+    );
+end component;
+
 
 
 component oscilloscope_top is

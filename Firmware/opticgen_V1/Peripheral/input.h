@@ -31,7 +31,7 @@ uint16_t encoder_read(void);
 uint32_t update_param_32(uint32_t param, uint32_t min, uint32_t max, uint32_t step);
 
 uint16_t update_param_16(uint16_t param, uint16_t min, uint16_t max, uint16_t step);
-
+int16_t update_param_16_signed(int16_t param, int16_t min, int16_t max, int16_t step);
 uint8_t update_param_8(uint8_t param, uint8_t min, uint8_t max, uint8_t step);
 
 

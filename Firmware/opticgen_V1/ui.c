@@ -9,8 +9,8 @@
 #include "Peripheral/ext_register.h"
 #include "Peripheral/XPT2046.h"
 #include "logo/logo_mini.h"
-#include "logo/nerkia.h"
-#include "logo/nerk.h"
+//#include "logo/nerkia.h"
+//#include "logo/nerk.h"
 #include "logo/k_icon.h"
 #include "scope.h"
 
@@ -396,8 +396,8 @@ void ui_splash(void)
     setTextColor(0xFFFF, 0x0000);
     ILI9341_set_cursor(80,80);
 
-    draw_rle_bw(5, 10, 114, 182, nerkia_rle);
-    ILI9341_draw_rle(nerk_rle, 120, 10, 192);
+    //draw_rle_bw(5, 10, 114, 182, nerkia_rle);
+    //ILI9341_draw_rle(nerk_rle, 120, 10, 192);
     ILI9341_draw_rle(logo_mini_rle, 150, 55, 110);
     // add messages
     setTextSize(2);

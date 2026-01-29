@@ -32,10 +32,12 @@ TouchZone_t zones[NUM_ZONES] = {
 };
 
 TouchZone_t zones_osc[NUM_ZONES_OSC] = {
-    {  263,   1, 48,  48,  0 },   // zona 0  trigger
-    {  263,  54, 48,  48,  0 },
-    {  263,  108, 48,  48,  0 },
-    {   30,   0, 30,  40,  0 },
+    {  263,   1, 48,  48,  0 },     // zona 0  trigger
+    {  263,  54, 48,  48,  0 },     // zona 1 fronte
+    {  263,  108, 48,  48,  0 },    // zona 2 run
+    {  263,  162, 48,  48,  0 },    // zona 3 pan
+    {  263,  216, 48,  48,  0 },    // zona 4 next
+    {   30,   0, 30,  40,  0 },     // zona 5 exit
 };
 
 static void delay_nus(int cnt)

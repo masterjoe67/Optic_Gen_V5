@@ -27,8 +27,7 @@ entity oscilloscope_top is
         mmio_wdata    : in  std_logic_vector(7 downto 0);
         mmio_we       : in  std_logic;
         mmio_rdata    : out std_logic_vector(7 downto 0);
-        out_en        : out std_logic;
-		  tb_view_full_sign : out std_logic_vector(15 downto 0)
+        out_en        : out std_logic
 
     );
 end entity;
@@ -69,9 +68,8 @@ architecture rtl of oscilloscope_top is
     constant BUFFER_SIZE      : integer := 4096;
 	 constant PTR_BITS         : integer := 12;
     constant PRE_TRIGGER      : integer := 150;
-    constant POST_TRIGGER_LEN : integer := 255;
+    constant POST_TRIGGER_LEN : integer := 150;
     constant AUTO_TIMEOUT     : unsigned(15 downto 0) := to_unsigned(2050, 16);
-	 constant PAN_LIMIT : integer := BUFFER_SIZE/2;
 
     ------------------------------------------------------------------
     -- Segnali Interni
@@ -151,17 +149,10 @@ architecture rtl of oscilloscope_top is
 
     -- ADC reader signals (non usati ma mantenuti per logica)
     signal adc_start             : std_logic := '0';
+    signal adc_busy              : std_logic;
     signal adc_tick              : std_logic := '0';
     signal adc_div               : unsigned(15 downto 0) := (others => '0');
-	 
 
-	 signal base_cmd          : std_logic := '0'; -- 0=time_div, 1=view_offset
-	 signal view_bytecnt      : unsigned(2 downto 0) := (others => '0');
-	 signal view_offset       : signed(PTR_BITS-1 downto 0) := (others => '0');
-	 signal view_shift : signed(15 downto 0) := (others => '0');
-	 
-	 signal view_full_raw : std_logic_vector(15 downto 0) := (others => '0');
-	 signal view_full_sign       : signed(15 downto 0) := (others => '0');
     ------------------------------------------------------------------
     -- Utility function
     ------------------------------------------------------------------
@@ -190,12 +181,7 @@ begin
     -- Read index calculation
     -- Calcolo indice di lettura RAM con base stabile
     ------------------------------------------------------------------
-    --rd_index <= rd_base_stable + reg_index_int;
-	 rd_index <= unsigned(
-               signed(rd_base_stable) +
-               view_offset +
-               signed(reg_index_int)
-           );
+    rd_index <= rd_base_stable + reg_index_int;
 
     ------------------------------------------------------------------
     -- Trigger sample selection
@@ -218,8 +204,6 @@ begin
 
     auto_timeout_hit <= '1' when (mode = "00") and (auto_cnt >= AUTO_TIMEOUT) else '0';
     next_base_time_reload <= time_div_map(reg_time_div_sel);
-	 
-	 tb_view_full_sign <= std_logic_vector(view_full_sign);
 
     ------------------------------------------------------------------
     -- Stable read base logic
@@ -416,101 +400,65 @@ begin
             data_out => ram_c_out
         );
 
-------------------------------------------------------------------
--- MMIO write logic - Versione Corretta
-------------------------------------------------------------------
-process(clk, rst_n)
-begin
-    if rst_n = '0' then
-        reg_index_int    <= (others => '0');
-        reg_trig_level   <= to_unsigned(512, 12);
-        reg_trig_ctrl    <= (others => '0');
-        base_bytecnt     <= (others => '0');
-        base_shift       <= (others => '0');
-        trig_shift       <= (others => '0');
-        trig_bytecnt     <= (others => '0');
-        reg_base_time    <= to_unsigned(20000, 32);
-        wr_timeout       <= (others => '0');
-        reg_time_div_sel <= 0;
-        view_bytecnt     <= (others => '0');
-        view_offset      <= (others => '0');
-        view_shift       <= (others => '0');
-        view_full_raw    <= (others => '0');
-        base_cmd         <= '0';
-
-    elsif rising_edge(clk) then
-        if mmio_we = '1' then
-            wr_timeout <= to_unsigned(20000, wr_timeout'length);
-        elsif wr_timeout /= 0 then
-            wr_timeout <= wr_timeout - 1;
-        else
-            trig_bytecnt <= (others => '0');
-            base_bytecnt <= (others => '0');
-            view_bytecnt <= (others => '0'); 
-        end if;
-
-        if index_reg_sel = '1' and mmio_we = '1' then
-            reg_index_int <= "00" & unsigned(mmio_wdata);
-        elsif rd_cha_strobe = '1' then
-            reg_index_int <= reg_index_int + 1;
-        end if;
-
-        if mmio_we = '1' and base_reg_sel = '1' then
-				-- *** PRIORITÀ 1: CONCLUSIONE CICLO (Stato 100) ***
-            -- Se siamo arrivati qui, view_full_raw ha già LSB e MSB salvati.
-            -- Questo ciclo di clock corrisponde al tuo "REG_BASETIME = 0xFF" finale.
-            if view_bytecnt = "100" then
-                -- ESEGUIAMO IL CALCOLO ORA!
-                -- view_full_raw è stabile da un ciclo, quindi niente errori.
-
-					 
-					 
-					 view_full_sign <= signed(view_full_raw);
-                view_offset <= resize(signed(view_full_raw), view_offset'length);
-                
-                -- Poiché l'ultimo byte è 0xFF (Escape), il prossimo stato logico
-                -- è "001" (siamo già in modalità comando), non "000".
-                view_bytecnt <= "000";
-				-- RICEZIONE DATI: Qui NON dobbiamo controllare x"FF"
-            elsif view_bytecnt = "010" then
-                view_full_raw(7 downto 0) <= mmio_wdata; -- Salva LSB
-                view_bytecnt <= "011";
-					 
-				elsif view_bytecnt = "011" then
-                view_full_raw(15 downto 8) <= mmio_wdata; -- Salva MSB (il tuo 0xFF!)
-                view_bytecnt <= "100";
-					 
-				-- COMANDI: Qui controlliamo x"FF" per iniziare la sequenza	 
-            elsif mmio_wdata = x"FF" then
-                view_bytecnt <= "001";
-
-            elsif view_bytecnt = "001" then
-                base_cmd     <= mmio_wdata(0);
-                view_bytecnt <= "010";
-					 
-			
+    ------------------------------------------------------------------
+    -- MMIO write logic
+    -- Gestione registri multi-byte e timeout di scrittura
+    ------------------------------------------------------------------
+    process(clk, rst_n)
+    begin
+        if rst_n = '0' then
+            reg_index_int    <= (others => '0');
+            reg_trig_level   <= to_unsigned(512, 12);
+            reg_trig_ctrl    <= (others => '0');
+            base_bytecnt     <= (others => '0');
+            base_shift       <= (others => '0');
+            trig_shift       <= (others => '0');
+            trig_bytecnt     <= (others => '0');
+            reg_base_time    <= to_unsigned(20000, 32);
+            wr_timeout       <= (others => '0');
+            reg_time_div_sel <= 0;
+        elsif rising_edge(clk) then
+            if mmio_we = '1' then
+                wr_timeout <= to_unsigned(20000, wr_timeout'length);
+            elsif wr_timeout /= 0 then
+                wr_timeout <= wr_timeout - 1;
             else
+                trig_bytecnt <= (others => '0');
+                base_bytecnt <= (others => '0');
+            end if;
+
+            if index_reg_sel = '1' and mmio_we = '1' then
+                reg_index_int <= "00" & unsigned(mmio_wdata);
+            elsif rd_cha_strobe = '1' then
+                reg_index_int <= reg_index_int + 1;
+            end if;
+
+            if mmio_we = '1' and base_reg_sel = '1' then
                 reg_time_div_sel <= to_integer(unsigned(mmio_wdata(4 downto 0)));
             end if;
-        end if;
 
-        -- Logica Trigger (Invariata)
-        if mmio_we = '1' and trig_reg_sel = '1' then
-            if trig_bytecnt = "00" then trig_shift(7 downto 0) <= unsigned(mmio_wdata);
-            elsif trig_bytecnt = "01" then trig_shift(15 downto 8) <= unsigned(mmio_wdata);
-            elsif trig_bytecnt = "10" then
-                trig_shift(23 downto 16) <= unsigned(mmio_wdata);
-                reg_trig_level <= trig_shift(11 downto 0);
+            if mmio_we = '1' and trig_reg_sel = '1' then
+                if trig_bytecnt = "00" then
+                    trig_shift(7 downto 0) <= unsigned(mmio_wdata);
+                elsif trig_bytecnt = "01" then
+                    trig_shift(15 downto 8) <= unsigned(mmio_wdata);
+                elsif trig_bytecnt = "10" then
+                    trig_shift(23 downto 16) <= unsigned(mmio_wdata);
+                    reg_trig_level <= trig_shift(11 downto 0);
+                end if;
+
+                if trig_bytecnt = "10" then
+                    trig_bytecnt <= (others => '0');
+                else
+                    trig_bytecnt <= trig_bytecnt + 1;
+                end if;
             end if;
-            if trig_bytecnt = "10" then trig_bytecnt <= (others => '0');
-            else trig_bytecnt <= trig_bytecnt + 1; end if;
-        end if;
 
-        if mmio_we = '1' and trig_ctrl_sel = '1' then
-            reg_trig_ctrl <= mmio_wdata;
+            if mmio_we = '1' and trig_ctrl_sel = '1' then
+                reg_trig_ctrl <= mmio_wdata;
+            end if;
         end if;
-    end if;
-end process;
+    end process;
 
     ------------------------------------------------------------------
     -- MMIO read logic

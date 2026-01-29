@@ -77,6 +77,12 @@ typedef struct {
     uint8_t color;   // 0 = nero, 1 = bianco
 } rle_bw_t;
 typedef uint8_t byte;
+
+typedef struct {
+    int16_t x;
+    int16_t y;
+} Point_t;
+
 int16_t  cursor_x, cursor_y, win_xe, win_ye, padX;
 uint8_t  textfont,
            textsize,
@@ -109,7 +115,7 @@ void ILI9341_set_text_size(uint8_t size);
 //void ILI9341_PrintPercent(int val);
 //void ILI9341_PrintHz(int val);
 //void ILI9341_PrintKHz(float val);
-
+void ILI9341_FillTriangle(Point_t p0, Point_t p1, Point_t p2, uint16_t color);
 void drawPixel(uint16_t x, uint16_t y, uint16_t color);
 
 void fillScreen(uint16_t color);

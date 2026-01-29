@@ -37,6 +37,7 @@ uint16_t encoder_read(void) {
 }
 
 static int16_t prev_det = 0;
+int16_t prev_det_signed = 0;  // versione signed del detent
 
 uint32_t update_param_32(uint32_t param, uint32_t min, uint32_t max, uint32_t step)
 {
@@ -79,6 +80,29 @@ uint16_t update_param_16(uint16_t param, uint16_t min, uint16_t max, uint16_t st
 
     return (uint16_t)new_param;
 }
+
+
+
+int16_t update_param_16_signed(int16_t param, int16_t min, int16_t max, int16_t step)
+{
+    int16_t pos = encoder_read();   // 0..1023
+
+    // riduci a detent dividendo per 4 (o come vuoi)
+    int16_t det = pos;
+
+    int16_t diff = det - prev_det_signed;
+    prev_det_signed = det;
+
+    if(diff == 0) return param;
+
+    int32_t new_param = (int32_t)param + (int32_t)diff * step; // usa int32_t per overflow temporaneo
+
+    if(new_param < min) new_param = min;
+    if(new_param > max) new_param = max;
+
+    return (int16_t)new_param;
+}
+
 
 uint8_t update_param_8(uint8_t param, uint8_t min, uint8_t max, uint8_t step)
 {

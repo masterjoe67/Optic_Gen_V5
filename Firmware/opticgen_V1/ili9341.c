@@ -74,6 +74,13 @@ const PROGMEM fontinfo fontdata [] = {
     #define swap(a, b)  do { int _t = (a); (a) = (b); (b) = _t; } while(0)
 #endif
 
+static void swap_int16(int16_t *a, int16_t *b)
+{
+    int16_t t = *a;
+    *a = *b;
+    *b = t;
+}
+
 
 void spi_init(void) {
     // MOSI (PB2), SCK (PB1), SS (PB4) come output
@@ -156,11 +163,7 @@ void ILI9341_Reset(void) {
 
 void ILI9341_Send_Burst(uint16_t color, uint32_t repetitions)
 {
-    /*uint8_t hi = color >> 8;
-    uint8_t lo = color & 0xFF;
 
-    DC_DATA();   // dati
-    CS_LOW();    // seleziona display*/
 
     // Invio ripetuto: ottimizzato
     while (repetitions--)
@@ -820,59 +823,31 @@ void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
   CS_HIGH();
 }
 
-/***************************************************************************************
-** Function name:           drawPixel
-** Description:             push a single pixel at an arbitrary position
-***************************************************************************************/
-/*void drawPixel(uint16_t x, uint16_t y, uint16_t color)
+void ILI9341_FillTriangle(Point_t p0, Point_t p1, Point_t p2, uint16_t color)
 {
-	// Faster range checking, possible because x and y are unsigned
-	if ((x >= X_SIZE) || (y >= Y_SIZE)) return;
-	//spi_begin();
+    if (p0.y > p1.y) { swap_int16(&p0.y, &p1.y); swap_int16(&p0.x, &p1.x); }
+    if (p1.y > p2.y) { swap_int16(&p1.y, &p2.y); swap_int16(&p1.x, &p2.x); }
+    if (p0.y > p1.y) { swap_int16(&p0.y, &p1.y); swap_int16(&p0.x, &p1.x); }
 
-	CS_LOW();
+    int16_t total_height = p2.y - p0.y;
 
-	if (addr_col != x) {
-		DC_CMD();
-	
-		SPDR = ILI9341_CASET;
-		while(!(SPSR & (1<<SPIF)));
-		addr_col = x;
-		DC_DATA();;
-		SPDR = x >> 8; //spiWait17();
-		SPDR = x; //spiWait17();
+    for (int16_t y = p0.y; y <= p2.y; y++) {
+        uint8_t second_half = y > p1.y || p1.y == p0.y;
+        int16_t segment_height = second_half ? p2.y - p1.y : p1.y - p0.y;
 
-		SPDR = x >> 8; while(!(SPSR & (1<<SPIF)));
-		SPDR = x; while(!(SPSR & (1<<SPIF)));
-	}
+        float alpha = (float)(y - p0.y) / total_height;
+        float beta  = (float)(y - (second_half ? p1.y : p0.y)) / segment_height;
 
-	if (addr_row != y) {
-		DC_CMD();
-		SPDR = ILI9341_PASET;
-		while(!(SPSR & (1<<SPIF)));
-		addr_row = y;
-		DC_DATA();
-		SPDR = y >> 8; while(!(SPSR & (1<<SPIF)));
-		SPDR = y; while(!(SPSR & (1<<SPIF)));
+        int16_t ax = p0.x + (p2.x - p0.x) * alpha;
+        int16_t bx = second_half
+            ? p1.x + (p2.x - p1.x) * beta
+            : p0.x + (p1.x - p0.x) * beta;
 
-		SPDR = y >> 8; while(!(SPSR & (1<<SPIF)));
-		SPDR = y; while(!(SPSR & (1<<SPIF)));
-	}
-
-  DC_CMD();
-
-  SPDR = ILI9341_RAMWR; while(!(SPSR & (1<<SPIF)));
-
-  DC_DATA();
-
-  SPDR = color >> 8; while(!(SPSR & (1<<SPIF)));
-  win_xe=x;
-  SPDR = color; while(!(SPSR & (1<<SPIF)));
-  win_ye=y;
-
-CS_HIGH();
-}*/
-
+        if (ax > bx) swap_int16(&ax, &bx);
+        int16_t w = bx - ax;
+        drawFastHLine(ax, y, w, color);
+    }
+}
 /***************************************************************************************
 ** Function name:           fillScreen
 ** Description:             Clear the screen to defined colour
@@ -1352,11 +1327,11 @@ height = height * textsize;
 }
 
 // stampa semplice stringa
-    void ILI9341_Print(const char *str) {
-        while(*str) {
-            ILI9341_write((uint8_t)*str++);
-        }
+void ILI9341_Print(const char *str) {
+    while(*str) {
+        ILI9341_write((uint8_t)*str++);
     }
+}
 
 uint8_t u16_to_decstr(uint16_t v, char *buf)
 {
